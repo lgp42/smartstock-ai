@@ -197,7 +197,7 @@
     </Transition>
 
     <!-- Main Workspace -->
-    <main class="flex-1 overflow-auto bg-darkBg relative p-5">
+    <main class="flex-1 min-h-0 overflow-hidden bg-darkBg relative p-5">
       <router-view />
     </main>
   </div>
@@ -214,6 +214,7 @@ import request from '../utils/request'
 const navLinks = [
   { to: '/dashboard', label: '自选大本营' },
   { to: '/screener', label: '智能选股' },
+  { to: '/copilot', label: 'AI 问答' },
   { to: '/terminal', label: '行情终端' },
   { to: '/news', label: '市场快讯' },
   { to: '/portfolio', label: '我的资产' },

@@ -30,6 +30,11 @@ const router = createRouter({
           component: () => import('../views/TerminalView.vue'),
         },
         {
+          path: 'copilot/:code?',
+          name: 'Copilot',
+          component: () => import('../views/CopilotView.vue'),
+        },
+        {
           path: 'screener',
           name: 'Screener',
           component: () => import('../views/ScreenerView.vue'),

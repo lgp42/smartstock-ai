@@ -74,8 +74,13 @@ public class EastMoneyClient {
             log.warn("Redis cache read failed for key: {}, error: {}", cacheKey, e.getMessage());
         }
 
+        StockRealtimeDTO tencentQuote = getTencentRealtimeQuote(stockCode, market);
+        if (tencentQuote != null && tencentQuote.getCurrentPrice() != null) {
+            return tencentQuote;
+        }
+
         String secid = market + "." + stockCode;
-        String url = baseUrl + "/api/qt/stock/get?fields=f43,f44,f45,f46,f47,f48,f60,f100,f116,f117,f124,f162,f168,f169,f170&secid=" + secid +
+        String url = baseUrl + "/api/qt/stock/get?fields=f43,f44,f45,f46,f47,f48,f57,f58,f60,f100,f116,f117,f124,f127,f162,f168,f169,f170&secid=" + secid +
                 "&ut=fa5fd1943c7b386f172d6893dbfba10b&cb=";
 
         try {
@@ -95,7 +100,10 @@ public class EastMoneyClient {
             }
 
             StockRealtimeDTO dto = new StockRealtimeDTO();
-            dto.setStockCode(stockCode);
+            dto.setStockCode(data.path("f57").asText(stockCode));
+            if (!data.path("f58").isMissingNode() && !data.path("f58").isNull()) {
+                dto.setStockName(data.path("f58").asText(null));
+            }
 
             // f43=当前价（需÷100）
             if (!data.path("f43").isMissingNode() && data.path("f43").asInt() != 0) {
@@ -141,7 +149,9 @@ public class EastMoneyClient {
                 dto.setCirculatingMarketCap(BigDecimal.valueOf(data.path("f117").asDouble())
                         .divide(BigDecimal.valueOf(100000000L), 2, RoundingMode.HALF_UP));
             }
-            if (!data.path("f100").isMissingNode() && !data.path("f100").isNull()) {
+            if (!data.path("f127").isMissingNode() && !data.path("f127").isNull()) {
+                dto.setIndustry(data.path("f127").asText(null));
+            } else if (!data.path("f100").isMissingNode() && !data.path("f100").isNull()) {
                 dto.setIndustry(data.path("f100").asText(null));
             }
             if (!data.path("f124").isMissingNode() && data.path("f124").asLong() > 0) {
@@ -370,23 +380,7 @@ public class EastMoneyClient {
 
     public Map<String, StockRealtimeDTO> getBatchRealtimeQuotes(List<StockScreenerCandidateDTO> candidates) {
         Map<String, StockRealtimeDTO> result = new HashMap<>();
-        List<StockScreenerCandidateDTO> missing = new ArrayList<>();
-
-        for (StockScreenerCandidateDTO candidate : candidates) {
-            String marketCode = "SH".equalsIgnoreCase(candidate.getMarket()) ? "1" : "0";
-            String cacheKey = REALTIME_CACHE_PREFIX + marketCode + ":" + candidate.getStockCode();
-            try {
-                String cached = stringRedisTemplate.opsForValue().get(cacheKey);
-                if (cached != null) {
-                    result.put(candidate.getMarket() + ":" + candidate.getStockCode(),
-                            objectMapper.readValue(cached, StockRealtimeDTO.class));
-                    continue;
-                }
-            } catch (Exception e) {
-                log.warn("Redis cache read failed for key: {}, error: {}", cacheKey, e.getMessage());
-            }
-            missing.add(candidate);
-        }
+        List<StockScreenerCandidateDTO> missing = new ArrayList<>(candidates);
 
         for (int i = 0; i < missing.size(); i += 60) {
             List<StockScreenerCandidateDTO> batch = missing.subList(i, Math.min(i + 60, missing.size()));
@@ -405,7 +399,6 @@ public class EastMoneyClient {
                     }
                     String market = line.contains("v_sh") ? "SH" : "SZ";
                     result.put(market + ":" + dto.getStockCode(), dto);
-                    cacheRealtimeQuote(dto, "SH".equals(market) ? "1" : "0");
                 }
             } catch (Exception e) {
                 log.warn("Failed to get batch Tencent realtime quotes, error: {}", e.getMessage());

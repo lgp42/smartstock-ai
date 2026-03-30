@@ -37,6 +37,19 @@
             </div>
           </div>
 
+          <div class="flex flex-wrap items-center gap-2 xl:justify-end">
+            <button
+              type="button"
+              class="rounded-lg border border-darkBorder/60 bg-darkCard/50 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white"
+              @click="addToWatchlist"
+            >加入自选</button>
+            <button
+              type="button"
+              class="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10"
+              @click="openCopilot"
+            >打开 AI 问答</button>
+          </div>
+
           <!-- Quick stats -->
           <div class="flex flex-wrap items-center gap-x-6 gap-y-3 xl:justify-end">
             <div v-for="stat in quickStats" :key="stat.label">
@@ -81,7 +94,7 @@
       </div>
 
       <!-- Chart + side panel -->
-      <div class="grid flex-1 gap-4 min-h-0 xl:grid-cols-[minmax(0,1fr)_240px]">
+      <div class="grid flex-1 gap-4 min-h-0 xl:grid-cols-[minmax(0,1fr)_360px]">
         <!-- KlineCharts container -->
         <div class="relative rounded-xl overflow-hidden bg-[#050D1A] border border-darkBorder/30 min-h-[400px]">
           <div ref="chartContainerRef" class="w-full h-full"></div>
@@ -97,7 +110,7 @@
         </div>
 
         <!-- Side analysis panel -->
-        <div class="flex flex-col gap-3">
+        <div class="flex min-h-0 flex-col gap-3">
           <div class="rounded-xl border border-darkBorder/50 bg-darkCard/40 p-4">
             <div class="data-label mb-3">分时速览 · {{ activePeriodLabel }}</div>
             <div class="space-y-3 text-sm">
@@ -130,6 +143,73 @@
               <div class="flex items-center justify-between py-1.5">
                 <span class="text-slate-500 text-xs">均价参考</span>
                 <span class="font-mono text-slate-200 text-xs">{{ averagePriceLabel }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex min-h-0 flex-1 flex-col rounded-xl border border-primary/20 bg-[linear-gradient(180deg,rgba(10,20,36,0.92),rgba(6,12,24,0.96))] p-4 shadow-[0_20px_60px_rgba(34,211,238,0.08)]">
+            <div class="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <div class="data-label text-primary/80">AI 问答</div>
+                <div class="mt-1 font-display text-lg font-black tracking-tight text-white">交易台副驾驶</div>
+              </div>
+              <button
+                type="button"
+                class="rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] font-mono font-semibold text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+                :disabled="qaLoading"
+                @click="fetchQaHistory"
+              >刷新</button>
+            </div>
+
+            <div class="mb-3 flex flex-wrap gap-1.5">
+              <button
+                v-for="item in qaSuggestions"
+                :key="item"
+                type="button"
+                class="rounded-full border border-darkBorder/60 bg-darkBg/60 px-2.5 py-1 text-[11px] font-medium text-slate-400 transition hover:border-primary/30 hover:text-primary"
+                @click="qaQuestion = item"
+              >{{ item }}</button>
+            </div>
+
+            <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+              <div v-if="qaHistory.length" class="space-y-3">
+                <article
+                  v-for="item in qaHistory"
+                  :key="item.id"
+                  class="rounded-xl border border-darkBorder/50 bg-darkBg/50 p-3"
+                >
+                  <div class="mb-2 flex items-start gap-2">
+                    <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[10px] font-black text-darkBg">Q</span>
+                    <p class="text-sm font-semibold leading-6 text-slate-100">{{ item.question }}</p>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-black text-darkBg">AI</span>
+                    <div class="markdown-body text-sm leading-6 text-slate-300" v-html="renderAnswer(item.answer)"></div>
+                  </div>
+                  <div class="mt-3 text-right text-[10px] font-mono text-slate-600">{{ formatDateTime(item.createdAt) }}</div>
+                </article>
+              </div>
+              <div v-else class="flex h-full min-h-[180px] items-center justify-center rounded-xl border border-dashed border-darkBorder/50 bg-darkBg/40 px-4 text-center text-sm leading-6 text-slate-500">
+                还没有问答记录。输入一个问题，直接让 AI 结合当前股票分析给出结论。
+              </div>
+            </div>
+
+            <div class="mt-3 border-t border-darkBorder/40 pt-3">
+              <textarea
+                v-model="qaQuestion"
+                rows="4"
+                class="w-full resize-none rounded-xl border border-darkBorder/60 bg-darkBg/70 px-3 py-3 text-sm leading-6 text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-primary/30"
+                :placeholder="`围绕 ${stockName || code} 提问，例如：现在适合观望还是分批介入？`"
+                @keydown.enter.exact.prevent="askAi"
+              ></textarea>
+              <div class="mt-3 flex items-center justify-between gap-3">
+                <div class="text-[10px] font-mono uppercase tracking-[0.18em] text-slate-600">Enter 发送</div>
+                <button
+                  type="button"
+                  class="rounded-xl bg-primary px-4 py-2.5 text-sm font-display font-black tracking-[0.14em] text-darkBg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                  :disabled="qaLoading || !qaQuestion.trim()"
+                  @click="askAi"
+                >{{ qaLoading ? '分析中' : '发送问题' }}</button>
               </div>
             </div>
           </div>
@@ -234,11 +314,12 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { init as klineInit, dispose as klineDispose, type Chart as KlineChart, type Crosshair, type Period, type KLineData } from 'klinecharts'
 import request from '../utils/request'
+import { renderMarkdown } from '../utils/markdown'
 import { useToastStore } from '../stores/toast'
-import type { StockDetailVO, AccountVO } from '../types'
+import type { StockDetailVO, AccountVO, QaAnswerVO, QaHistoryVO } from '../types'
 
 type PeriodValue = '1s' | '1min' | '5min' | '15min' | '30min' | '60min' | 'day' | 'week' | 'month'
 type IndicatorValue = 'macd' | 'kdj' | 'rsi'
@@ -264,6 +345,7 @@ const INDICATOR_OPTIONS: Array<{ label: string; value: IndicatorValue; klineName
 const quickLots = [100, 500, 1000, 2000]
 
 const route = useRoute()
+const router = useRouter()
 const toast = useToastStore()
 const chartContainerRef = ref<HTMLDivElement | null>(null)
 const code = ref((route.params.code as string) || '000001')
@@ -280,6 +362,11 @@ const lastPollSync = ref('')
 const chartLoading = ref(true)
 const latestKlines = ref<any[]>([])
 const chartData = ref<KLineData[]>([])
+const qaQuestion = ref('')
+const qaLoading = ref(false)
+const qaHistory = ref<QaHistoryVO[]>([])
+
+const renderAnswer = (content: string) => renderMarkdown(content)
 
 let chartInstance: KlineChart | null = null
 let indicatorPaneId: string | null = null
@@ -361,6 +448,15 @@ const volumeStatusClass = computed(() => {
   return 'text-slate-200'
 })
 
+const qaSuggestions = computed(() => {
+  const target = stockName.value || code.value
+  return [
+    `${target} 短线怎么看？`,
+    `${target} 现在最大的风险是什么？`,
+    `${target} 适合继续观望还是分批介入？`,
+  ]
+})
+
 const priceColor = computed(() => {
   if (!detail.value) return 'text-slate-100'
   const r = Number(detail.value.changeRate)
@@ -389,6 +485,13 @@ const formatVolume = (v: unknown) => {
   if (n >= 1e8) return `${(n / 1e8).toFixed(2)} 亿股`
   if (n >= 1e4) return `${(n / 1e4).toFixed(2)} 万股`
   return `${n.toFixed(0)} 股`
+}
+const formatDateTime = (value: string) => {
+  if (!value) return '--'
+  const normalized = value.includes('T') ? value : value.replace(' ', 'T')
+  const date = new Date(normalized)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('zh-CN', { hour12: false })
 }
 
 const parseKlineDate = (dateStr: string): number => {
@@ -606,6 +709,14 @@ const fetchAcc = async () => {
   try { account.value = await request.get('/trade/account') } catch (e) { console.error(e) }
 }
 
+const fetchQaHistory = async () => {
+  try {
+    qaHistory.value = await request.get<QaHistoryVO[]>('/qa/history', { params: { limit: 8 } })
+  } catch (e) {
+    console.error(e)
+  }
+}
+
 const fetchKLine = async (silent = false) => {
   if (!code.value) return
   if (!silent) chartLoading.value = true
@@ -646,6 +757,20 @@ const refreshAll = async () => {
   await Promise.all([fetchDetail(), fetchKLine(), fetchAcc()])
 }
 
+const addToWatchlist = async () => {
+  if (!code.value) return
+  try {
+    await request.post('/watchlist', { stockCode: code.value })
+    toast.success(`已添加 ${code.value} 到自选股`)
+  } catch (err: any) {
+    toast.error(err.message || '添加自选股失败')
+  }
+}
+
+const openCopilot = () => {
+  router.push(`/copilot/${code.value}`)
+}
+
 const submitOrder = async () => {
   try {
     await request.post(`/trade/${side.value}`, {
@@ -660,9 +785,49 @@ const submitOrder = async () => {
   }
 }
 
-const startQuotePolling = () => {
-  if (quoteTimer) window.clearInterval(quoteTimer)
+const askAi = async () => {
+  if (!code.value || !qaQuestion.value.trim() || qaLoading.value) return
+  stopQuotePolling()
+  qaLoading.value = true
+  try {
+    const response = await request.post<QaAnswerVO>(
+      '/qa/ask',
+      {
+        stockCode: code.value,
+        question: qaQuestion.value.trim(),
+      },
+      {
+        timeout: 120000,
+      }
+    )
+    qaHistory.value = [
+      {
+        id: Date.now(),
+        question: response.question,
+        answer: response.answer,
+        createdAt: response.createdAt,
+      },
+      ...qaHistory.value,
+    ].slice(0, 8)
+    qaQuestion.value = ''
+  } catch (err: any) {
+    toast.error(err.message || 'AI 问答失败')
+  } finally {
+    qaLoading.value = false
+    startQuotePolling()
+  }
+}
+
+const stopQuotePolling = () => {
+  if (quoteTimer) {
+    window.clearInterval(quoteTimer)
+    quoteTimer = undefined
+  }
   pollingBusy = false
+}
+
+const startQuotePolling = () => {
+  stopQuotePolling()
   accountPollCount = 0
   quoteTimer = window.setInterval(async () => {
     if (pollingBusy) return
@@ -686,13 +851,16 @@ const startQuotePolling = () => {
 onMounted(async () => {
   initChart()
   await refreshAll()
+  await fetchQaHistory()
   startQuotePolling()
 })
 
 watch(() => route.params.code, async (newCode) => {
   code.value = (newCode as string) || '000001'
+  qaQuestion.value = ''
   initChart()
   await refreshAll()
+  await fetchQaHistory()
   startQuotePolling()
 })
 

@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 public class StockRealtimeDTO {
 
     private String stockCode;
+    private String stockName;
     private BigDecimal currentPrice;
     private BigDecimal changeRate;
     private BigDecimal changeAmount;

@@ -12,6 +12,7 @@ import com.smartstock.dto.SellOrderDTO;
 import com.smartstock.entity.*;
 import com.smartstock.mapper.*;
 import com.smartstock.service.TradeService;
+import com.smartstock.util.TextEncodingUtils;
 import com.smartstock.vo.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -496,18 +497,15 @@ public class TradeServiceImpl implements TradeService {
         List<StockInfo> matches = stockInfoMapper.selectList(
                 new LambdaQueryWrapper<StockInfo>().eq(StockInfo::getStockCode, stockCode));
         StockInfo preferred = selectPreferredStoredStockInfo(stockCode, matches);
-        if (preferred != null) {
+        if (preferred != null && !needsRemoteRefresh(preferred)) {
             return preferred;
         }
 
-        for (java.util.Map<String, String> remote : eastMoneyClient.searchStocks(stockCode)) {
-            if (!stockCode.equals(remote.get("stockCode"))
-                    || !StockInfo.isTradableAStock(stockCode, remote.get("market"))) {
-                continue;
-            }
-            return upsertStockInfo(remote, "TRADE");
+        StockInfo refreshed = refreshStockInfoFromRemote(stockCode);
+        if (refreshed != null) {
+            return refreshed;
         }
-        return null;
+        return preferred;
     }
 
     private StockInfo selectPreferredStoredStockInfo(String stockCode, List<StockInfo> matches) {
@@ -576,6 +574,30 @@ public class TradeServiceImpl implements TradeService {
 
     private String preferredMarket(String stockCode) {
         return stockCode != null && stockCode.startsWith("6") ? "SH" : "SZ";
+    }
+
+    private boolean needsRemoteRefresh(StockInfo stockInfo) {
+        return stockInfo == null
+                || TextEncodingUtils.hasCorruptedDisplayText(stockInfo.getStockName())
+                || !StringUtils.hasText(stockInfo.getMarket());
+    }
+
+    private StockInfo refreshStockInfoFromRemote(String stockCode) {
+        for (java.util.Map<String, String> remote : eastMoneyClient.searchStocks(stockCode)) {
+            if (!stockCode.equals(remote.get("stockCode"))
+                    || !StockInfo.isTradableAStock(stockCode, remote.get("market"))) {
+                continue;
+            }
+            String market = remote.get("market");
+            if (StringUtils.hasText(market)) {
+                StockRealtimeDTO realtimeDTO = eastMoneyClient.getRealtimeQuote(stockCode, StockInfo.toEastMoneyMarketCode(market));
+                if (realtimeDTO != null && StringUtils.hasText(realtimeDTO.getStockName())) {
+                    remote.put("stockName", realtimeDTO.getStockName());
+                }
+            }
+            return upsertStockInfo(remote, "TRADE");
+        }
+        return null;
     }
 
     private AccountVO toAccountVO(Long userId, Account account) {

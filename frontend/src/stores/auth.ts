@@ -9,6 +9,13 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn = computed(() => !!token.value)
 
+  const clearSession = () => {
+    token.value = ''
+    user.value = null
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+  }
+
   const login = async (email: string, password: string) => {
     const data = await request.post<LoginVO>('/auth/login', { email, password })
     token.value = data.token
@@ -31,10 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       await request.post('/auth/logout')
     } catch { /* ignore */ }
-    token.value = ''
-    user.value = null
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    clearSession()
   }
 
   const loadUser = () => {
@@ -49,11 +53,15 @@ export const useAuthStore = defineStore('auth', () => {
       const data = await request.get<UserVO>('/users/me')
       user.value = data
       localStorage.setItem('user', JSON.stringify(data))
-    } catch { /* ignore */ }
+      return data
+    } catch (error) {
+      clearSession()
+      throw error
+    }
   }
 
   // Initialize from localStorage
   loadUser()
 
-  return { token, user, isLoggedIn, login, register, logout, loadUser, fetchProfile }
+  return { token, user, isLoggedIn, login, register, logout, loadUser, fetchProfile, clearSession }
 })

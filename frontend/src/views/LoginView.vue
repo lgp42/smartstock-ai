@@ -136,10 +136,12 @@ const authStore = useAuthStore()
 const toast = useToastStore()
 const loading = ref(false)
 const error = ref('')
+const DEMO_EMAIL = 'demo@smartstock.ai'
+const DEMO_PASSWORD = 'Passw0rd!'
 
 const form = reactive({
-  email: '',
-  password: ''
+  email: DEMO_EMAIL,
+  password: DEMO_PASSWORD
 })
 
 // Animated sparkline

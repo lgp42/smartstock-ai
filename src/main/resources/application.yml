@@ -54,6 +54,16 @@ jwt:
   secret: ${SMARTSTOCK_JWT_SECRET:smartstock-ai-dev-secret-key-change-in-production-2026}
   expiration-seconds: ${SMARTSTOCK_JWT_EXPIRATION_SECONDS:604800}
 
+smartstock:
+  analysis:
+    base-url: ${SMARTSTOCK_ANALYSIS_BASE_URL:http://146.190.49.37:8000}
+    timeout: ${SMARTSTOCK_ANALYSIS_TIMEOUT:180s}
+  gemini:
+    base-url: ${SMARTSTOCK_GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+    api-key: ${SMARTSTOCK_GEMINI_API_KEY:}
+    model: ${SMARTSTOCK_GEMINI_MODEL:gemini-3-pro-preview}
+    timeout: ${SMARTSTOCK_GEMINI_TIMEOUT:120s}
+
 springdoc:
   api-docs:
     path: /v3/api-docs

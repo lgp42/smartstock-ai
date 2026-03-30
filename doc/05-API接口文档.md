@@ -1,7 +1,7 @@
 # 智能股票交易辅助系统 - API 接口文档
 
 **版本**: v0.0.1-SNAPSHOT  
-**最后更新**: 2026-03-18  
+**最后更新**: 2026-03-30  
 **文档状态**: 已按当前代码实现对齐
 
 ---
@@ -395,6 +395,144 @@ GET /api/market/stocks/search?keyword=平安&limit=3
 
 ---
 
+## 2.7 AI 分析接口
+
+### GET /analysis/health
+
+检查外部分析服务连通性。
+
+说明：
+
+- 当前也需要登录态
+- 返回外部服务健康状态和时间戳
+
+### POST /analysis/stock
+
+发起股票分析。
+
+请求体：
+
+```json
+{
+  "stockCode": "600519",
+  "reportType": "brief",
+  "forceRefresh": false
+}
+```
+
+参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `stockCode` | String | 是 | 股票代码 |
+| `reportType` | String | 否 | 默认 `detailed`，支持 `simple/detailed/full/brief` |
+| `forceRefresh` | Boolean | 否 | 是否强制刷新远端分析 |
+
+说明：
+
+- 当前会同步等待外部分析结果返回
+- 成功后会把请求和分析结果写入 `ai_analysis`
+
+### GET /analysis/history
+
+查询当前用户的分析历史。
+
+参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `stockCode` | String | 否 | 股票代码筛选 |
+| `page` | Integer | 否 | 默认 1 |
+| `pageSize` | Integer | 否 | 默认 20 |
+
+返回字段包含：
+
+- `id`
+- `stockCode`
+- `stockName`
+- `analysisType`
+- `operationAdvice`
+- `trendPrediction`
+- `sentimentScore`
+- `analysisSummary`
+- `createdAt`
+
+### GET /analysis/sentiment
+
+查询指定股票最近一次分析的情绪摘要。
+
+参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `stockCode` | String | 是 | 股票代码，不能为空字符串 |
+
+说明：
+
+- 若当前用户没有该股票历史分析，会先触发一次新的股票分析
+
+### GET /analysis/risk
+
+查询指定股票最近一次分析的风险摘要。
+
+参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `stockCode` | String | 是 | 股票代码，不能为空字符串 |
+
+说明：
+
+- 若当前用户没有该股票历史分析，会先触发一次新的股票分析
+
+---
+
+## 2.8 AI 问答接口
+
+### POST /qa/ask
+
+发起 AI 问答。
+
+请求体：
+
+```json
+{
+  "stockCode": "600519",
+  "question": "这只股票现在更适合观望还是分批介入？"
+}
+```
+
+参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `stockCode` | String | 是 | 当前提问关联的股票代码 |
+| `question` | String | 是 | 用户问题，最大 2000 字符 |
+
+说明：
+
+- 问答会优先复用该用户最近一次该股票分析结果
+- 若没有对应分析记录，会先自动触发一次股票分析
+
+### GET /qa/history
+
+查询当前用户最近问答历史。
+
+参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `limit` | Integer | 否 | 默认 10，范围 1-20 |
+
+返回字段包含：
+
+- `id`
+- `question`
+- `answer`
+- `createdAt`
+
+---
+
 ## 3. 当前未实现接口
 
 以下接口或能力未实现，不应对外宣称可用：
@@ -405,11 +543,9 @@ GET /api/market/stocks/search?keyword=平安&limit=3
 - 秒级历史 K 线
 - `boll`
 - 多指标一次性组合查询
-- 新闻情绪分析
 - WebSocket 行情推送
-- AI 分析接口
 - 回测接口
-- 风险预警接口
+- 主动风险预警推送接口
 - 撤单接口
 
 ---
@@ -422,7 +558,9 @@ GET /api/market/stocks/search?keyword=平安&limit=3
 - 当前 `kline` 没有 `startDate`、`endDate`
 - 当前没有秒级历史 K 线
 - 当前没有 `boll`
-- 当前没有 AI、回测、风险接口
+- 当前已有 AI 分析、历史、情绪摘要、风险摘要接口
+- 当前已有 AI 问答和问答历史接口
+- 当前没有回测、主动预警推送接口
 
 ---
 
@@ -433,8 +571,10 @@ GET /api/market/stocks/search?keyword=平安&limit=3
 1. 注册
 2. 登录拿 Token
 3. 调行情接口
-4. 调自选股接口
-5. 调交易接口
+4. 调 AI 分析接口
+5. 调 AI 问答接口
+6. 调自选股接口
+7. 调交易接口
 
 如果是受保护接口，请确认请求头已带：
 

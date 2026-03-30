@@ -149,12 +149,16 @@
                 <td class="px-3 py-2.5 text-right font-mono text-xs text-slate-500">{{ Number(item.pe || 0).toFixed(1) }}</td>
                 <td class="px-3 py-2.5 text-right font-mono text-xs text-slate-500">{{ Number(item.totalMarketCap || 0).toFixed(1) }}</td>
                 <td class="px-3 py-2.5 text-center">
-                  <div class="flex items-center justify-center gap-1.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                    <button @click="$router.push(`/terminal/${item.stockCode}`)"
+                  <div class="flex items-center justify-center gap-1.5">
+                    <button @click.stop="$router.push(`/terminal/${item.stockCode}`)"
                       class="text-[10px] font-bold text-primary px-2.5 py-1 rounded-lg border border-primary/25 bg-primary/5 hover:bg-primary/15 transition font-mono">
                       终端
                     </button>
-                    <button @click="addToWatchlist(item.stockCode)"
+                    <button @click.stop="$router.push(`/copilot/${item.stockCode}`)"
+                      class="text-[10px] font-bold text-accent px-2.5 py-1 rounded-lg border border-accent/25 bg-accent/5 hover:bg-accent/15 transition font-mono">
+                      AI
+                    </button>
+                    <button @click.stop="addToWatchlist(item.stockCode)"
                       class="text-[10px] font-bold text-slate-400 px-2.5 py-1 rounded-lg border border-darkBorder hover:border-slate-500 hover:text-slate-200 transition font-mono">
                       自选
                     </button>

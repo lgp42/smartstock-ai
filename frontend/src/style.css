@@ -5,7 +5,7 @@
 @layer base {
   body {
     @apply bg-darkBg text-slate-200 antialiased h-screen overflow-hidden;
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: 'DM Sans', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
     background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M40 0H0v40' fill='none' stroke='rgba(34,211,238,0.025)' stroke-width='1'/%3E%3C/svg%3E");
   }
 
@@ -78,6 +78,73 @@
     @apply inline-flex items-center rounded-full border border-slate-700/60 bg-slate-900/60 px-2.5 py-0.5
       text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400;
   }
+
+  .markdown-body {
+    @apply text-slate-200;
+  }
+
+  .markdown-body h1,
+  .markdown-body h2,
+  .markdown-body h3,
+  .markdown-body h4 {
+    @apply mt-4 text-white font-black tracking-tight;
+  }
+
+  .markdown-body h1 {
+    @apply text-2xl;
+  }
+
+  .markdown-body h2 {
+    @apply text-xl;
+  }
+
+  .markdown-body h3 {
+    @apply text-lg;
+  }
+
+  .markdown-body p,
+  .markdown-body ul,
+  .markdown-body ol,
+  .markdown-body pre,
+  .markdown-body blockquote {
+    @apply mt-3;
+  }
+
+  .markdown-body ul {
+    @apply list-disc pl-5;
+  }
+
+  .markdown-body ol {
+    @apply list-decimal pl-5;
+  }
+
+  .markdown-body li + li {
+    @apply mt-1;
+  }
+
+  .markdown-body strong {
+    @apply font-black text-white;
+  }
+
+  .markdown-body a {
+    @apply text-primary underline underline-offset-4;
+  }
+
+  .markdown-body code {
+    @apply rounded bg-darkBg/80 px-1.5 py-0.5 font-mono text-[0.92em] text-primary;
+  }
+
+  .markdown-body pre {
+    @apply overflow-x-auto rounded-xl border border-darkBorder/60 bg-[#050d1a] p-3;
+  }
+
+  .markdown-body pre code {
+    @apply bg-transparent p-0 text-slate-200;
+  }
+
+  .markdown-body blockquote {
+    @apply border-l-2 border-primary/40 pl-4 text-slate-400;
+  }
 }
 
 @layer utilities {
@@ -88,7 +155,7 @@
     @apply text-downPrice;
   }
   .font-display {
-    font-family: 'Syne', sans-serif;
+    font-family: 'Syne', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
   }
   .num-flash {
     animation: price-pulse 0.8s ease-in-out;

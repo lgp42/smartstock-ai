@@ -177,6 +177,43 @@ export interface WatchlistVO {
   sortOrder: number
 }
 
+// AI QA
+export interface QaAnswerVO {
+  sessionId: string
+  stockCode: string
+  question: string
+  answer: string
+  createdAt: string
+}
+
+export interface QaHistoryVO {
+  id: number
+  question: string
+  answer: string
+  createdAt: string
+}
+
+export interface QaSessionVO {
+  sessionId: string
+  stockCode: string | null
+  title: string
+  messageCount: number
+  createdAt: string | null
+  lastActive: string | null
+}
+
+export interface QaSessionMessageVO {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  createdAt: string | null
+}
+
+export interface QaSessionDetailVO {
+  sessionId: string
+  messages: QaSessionMessageVO[]
+}
+
 // Pagination
 export interface PageVO<T> {
   total: number

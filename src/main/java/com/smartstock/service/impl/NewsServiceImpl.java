@@ -35,6 +35,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -54,6 +57,12 @@ public class NewsServiceImpl implements NewsService {
     private static final ZoneId SHANGHAI_ZONE = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter DISPLAY_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final Pattern STOCK_CODE_PATTERN = Pattern.compile("(?<!\\d)(\\d{6})(?!\\d)");
+    private static final AtomicBoolean NEWS_SYNC_RUNNING = new AtomicBoolean(false);
+    private static final ExecutorService NEWS_SYNC_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "news-sync");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     private final SinaNewsClient sinaNewsClient;
     private final ClsNewsClient clsNewsClient;
@@ -73,18 +82,20 @@ public class NewsServiceImpl implements NewsService {
     @Cacheable(cacheNames = "flashNews",
             key = "'list:' + #limit + ':' + (#source == null ? '' : #source) + ':' + (#stockCode == null ? '' : #stockCode) + ':' + (#keyword == null ? '' : #keyword)")
     public List<NewsFlashVO> getFlashNews(int limit, String source, String stockCode, String keyword) {
-        if (isUnfiltered(source, stockCode, keyword)) {
+        boolean unfiltered = isUnfiltered(source, stockCode, keyword);
+        if (unfiltered) {
             List<NewsFlashVO> cachedNews = getCachedNews(limit);
             if (!cachedNews.isEmpty()) {
+                triggerAsyncSync(Math.max(limit, MIN_SYNC_SIZE), true);
                 return cachedNews;
             }
         }
 
-        synchronizeNews(Math.max(limit, MIN_SYNC_SIZE));
         List<NewsFlashVO> latestNews = loadStoredNews(Math.max(limit, MAX_CACHE_SIZE), source, stockCode, keyword);
-        if (isUnfiltered(source, stockCode, keyword)) {
+        if (unfiltered) {
             cacheNews(latestNews);
         }
+        triggerAsyncSync(Math.max(limit, MIN_SYNC_SIZE), unfiltered);
         return trimResult(latestNews, limit);
     }
 
@@ -148,6 +159,24 @@ public class NewsServiceImpl implements NewsService {
                 Comparator.nullsLast(Comparator.reverseOrder())));
 
         persistNews(deduplicate(mergedNews));
+    }
+
+    private void triggerAsyncSync(int targetSize, boolean refreshCache) {
+        if (!NEWS_SYNC_RUNNING.compareAndSet(false, true)) {
+            return;
+        }
+        NEWS_SYNC_EXECUTOR.submit(() -> {
+            try {
+                synchronizeNews(targetSize);
+                if (refreshCache) {
+                    cacheNews(loadStoredNews(MAX_CACHE_SIZE, null, null, null));
+                }
+            } catch (Exception e) {
+                log.warn("Async news synchronization failed, error: {}", e.getMessage());
+            } finally {
+                NEWS_SYNC_RUNNING.set(false);
+            }
+        });
     }
 
     private List<NewsFlashVO> getCachedNews(int limit) {

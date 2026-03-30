@@ -24,6 +24,7 @@ service.interceptors.response.use(
     } else {
       if (res.code === 401) {
         localStorage.removeItem('token');
+        localStorage.removeItem('user');
         window.location.href = '/login';
       }
       return Promise.reject(new Error(res.message || 'Error'));
@@ -32,6 +33,7 @@ service.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401 || error.response?.data?.code === 401) {
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       window.location.href = '/login';
     }
     return Promise.reject(

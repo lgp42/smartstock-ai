@@ -9,6 +9,7 @@ import com.smartstock.common.ErrorCode;
 import com.smartstock.entity.StockInfo;
 import com.smartstock.mapper.StockInfoMapper;
 import com.smartstock.service.MarketService;
+import com.smartstock.util.TextEncodingUtils;
 import com.smartstock.vo.IndicatorVO;
 import com.smartstock.vo.KlineVO;
 import com.smartstock.vo.MarketSnapshotVO;
@@ -94,16 +95,24 @@ public class MarketServiceImpl implements MarketService {
 
         StockDetailVO vo = new StockDetailVO();
         vo.setStockCode(stockInfo.getStockCode());
-        vo.setStockName(stockInfo.getStockName());
+        String resolvedStockName = stockInfo.getStockName();
+        if (TextEncodingUtils.hasCorruptedDisplayText(resolvedStockName)
+                && realtimeDTO != null
+                && StringUtils.hasText(realtimeDTO.getStockName())) {
+            resolvedStockName = realtimeDTO.getStockName();
+        }
+        vo.setStockName(TextEncodingUtils.normalizeDisplayText(resolvedStockName));
         vo.setMarket(stockInfo.getMarket());
         vo.setBoard(stockInfo.getBoard());
         String resolvedIndustry = stockInfo.getIndustry();
-        if ((!StringUtils.hasText(resolvedIndustry) || shouldRefreshIndustry(stockInfo, resolvedIndustry))
+        if ((!StringUtils.hasText(resolvedIndustry)
+                || shouldRefreshIndustry(stockInfo, resolvedIndustry)
+                || TextEncodingUtils.hasCorruptedDisplayText(resolvedIndustry))
                 && realtimeDTO != null
                 && StringUtils.hasText(realtimeDTO.getIndustry())) {
             resolvedIndustry = realtimeDTO.getIndustry();
         }
-        vo.setIndustry(resolvedIndustry);
+        vo.setIndustry(TextEncodingUtils.normalizeDisplayText(resolvedIndustry));
         vo.setSt(stockInfo.getIsSt() != null && stockInfo.getIsSt() == 1);
         vo.setDelisted(stockInfo.getIsDelisted() != null && stockInfo.getIsDelisted() == 1);
 
@@ -166,13 +175,13 @@ public class MarketServiceImpl implements MarketService {
                 merged.put(key, new HashMap<>(item));
                 continue;
             }
-            if (!StringUtils.hasText(existing.get("stockName")) && StringUtils.hasText(item.get("stockName"))) {
+            if (shouldPreferRemoteDisplayValue(existing.get("stockName"), item.get("stockName"))) {
                 existing.put("stockName", item.get("stockName"));
             }
             if (!StringUtils.hasText(existing.get("market")) && StringUtils.hasText(item.get("market"))) {
                 existing.put("market", item.get("market"));
             }
-            if (!StringUtils.hasText(existing.get("industry")) && StringUtils.hasText(item.get("industry"))) {
+            if (shouldPreferRemoteDisplayValue(existing.get("industry"), item.get("industry"))) {
                 existing.put("industry", item.get("industry"));
             }
         }
@@ -180,6 +189,7 @@ public class MarketServiceImpl implements MarketService {
         List<Map<String, String>> result = new ArrayList<>();
         for (Map<String, String> item : merged.values()) {
             if (isTradeableAStock(item)) {
+                enrichSearchResult(item);
                 result.add(item);
             }
         }
@@ -280,12 +290,12 @@ public class MarketServiceImpl implements MarketService {
             return cached.results();
         }
 
-        List<StockScreenerCandidateDTO> candidates = eastMoneyClient.getScreenerCandidates(boards, SCREENING_MAX_PAGES);
+        List<StockScreenerCandidateDTO> candidates = buildFallbackScreenerCandidates(boards, industryGroup);
         if (candidates.isEmpty()) {
-            log.warn("Screener candidate API returned no data, fallback to search-based pool");
-            candidates = buildFallbackScreenerCandidates(boards, industryGroup);
+            log.warn("Fallback screener pool returned no data, retrying EastMoney candidate API");
+            candidates = eastMoneyClient.getScreenerCandidates(boards, SCREENING_MAX_PAGES);
+            hydrateCandidatesFromStockInfo(candidates);
         }
-        hydrateCandidatesFromStockInfo(candidates);
         List<ScreenerResultVO> result = new ArrayList<>();
         for (StockScreenerCandidateDTO candidate : candidates) {
             if (!matchesBoard(candidate.getStockCode(), candidate.getMarket(), boards)) {
@@ -389,7 +399,6 @@ public class MarketServiceImpl implements MarketService {
             if (!StringUtils.hasText(candidate.getIndustry()) && StringUtils.hasText(realtimeDTO.getIndustry())) {
                 candidate.setIndustry(realtimeDTO.getIndustry());
             }
-            persistCandidate(candidate, "SCREEN_FALLBACK");
             enriched.add(candidate);
         }
         return enriched;
@@ -436,7 +445,6 @@ public class MarketServiceImpl implements MarketService {
             if (candidate.getIsDelisted() == null) {
                 candidate.setIsDelisted(StockInfo.isDelistedStock(candidate.getStockName()) ? 1 : 0);
             }
-            persistCandidate(candidate, "SCREEN");
         }
     }
 
@@ -730,17 +738,18 @@ public class MarketServiceImpl implements MarketService {
                 new LambdaQueryWrapper<StockInfo>().eq(StockInfo::getStockCode, stockCode));
         StockInfo stockInfo = selectPreferredStoredStockInfo(stockCode, storedMatches);
         if (stockInfo != null) {
+            if (needsRemoteRefresh(stockInfo)) {
+                StockInfo refreshed = refreshStockInfoFromSearch(stockCode, "SEARCH");
+                if (refreshed != null) {
+                    return refreshed;
+                }
+            }
             return stockInfo;
         }
 
-        for (Map<String, String> remote : eastMoneyClient.searchStocks(stockCode)) {
-            if (!stockCode.equals(remote.get("stockCode")) || !isTradeableAStock(remote)) {
-                continue;
-            }
-            StockInfo created = upsertStockInfo(remote, remote.get("industry"), "SEARCH");
-            if (created != null) {
-                return created;
-            }
+        StockInfo created = refreshStockInfoFromSearch(stockCode, "SEARCH");
+        if (created != null) {
+            return created;
         }
         throw new BusinessException(ErrorCode.STOCK_NOT_FOUND, "股票不存在: " + stockCode);
     }
@@ -811,6 +820,33 @@ public class MarketServiceImpl implements MarketService {
 
     private String safeValue(String value) {
         return value == null ? "" : value;
+    }
+
+    private boolean shouldPreferRemoteDisplayValue(String existingValue, String remoteValue) {
+        return StringUtils.hasText(remoteValue)
+                && (!StringUtils.hasText(existingValue) || TextEncodingUtils.hasCorruptedDisplayText(existingValue));
+    }
+
+    private void enrichSearchResult(Map<String, String> item) {
+        String stockCode = item.get("stockCode");
+        String market = item.get("market");
+        if (!StringUtils.hasText(stockCode) || !StringUtils.hasText(market)) {
+            return;
+        }
+        if (!TextEncodingUtils.hasCorruptedDisplayText(item.get("stockName"))
+                && !TextEncodingUtils.hasCorruptedDisplayText(item.get("industry"))) {
+            return;
+        }
+        StockRealtimeDTO realtimeDTO = eastMoneyClient.getRealtimeQuote(stockCode, StockInfo.toEastMoneyMarketCode(market));
+        if (realtimeDTO == null) {
+            return;
+        }
+        if (shouldPreferRemoteDisplayValue(item.get("stockName"), realtimeDTO.getStockName())) {
+            item.put("stockName", realtimeDTO.getStockName());
+        }
+        if (shouldPreferRemoteDisplayValue(item.get("industry"), realtimeDTO.getIndustry())) {
+            item.put("industry", realtimeDTO.getIndustry());
+        }
     }
 
     private boolean matchesBoard(String stockCode, String market, List<String> boards) {
@@ -1141,6 +1177,38 @@ public class MarketServiceImpl implements MarketService {
         return stockCode != null && stockCode.startsWith("6") ? "SH" : "SZ";
     }
 
+    private boolean needsRemoteRefresh(StockInfo stockInfo) {
+        return stockInfo == null
+                || TextEncodingUtils.hasCorruptedDisplayText(stockInfo.getStockName())
+                || TextEncodingUtils.hasCorruptedDisplayText(stockInfo.getIndustry())
+                || !StringUtils.hasText(stockInfo.getMarket());
+    }
+
+    private StockInfo refreshStockInfoFromSearch(String stockCode, String source) {
+        for (Map<String, String> remote : eastMoneyClient.searchStocks(stockCode)) {
+            if (!stockCode.equals(remote.get("stockCode")) || !isTradeableAStock(remote)) {
+                continue;
+            }
+            String market = remote.get("market");
+            if (StringUtils.hasText(market)) {
+                StockRealtimeDTO realtimeDTO = eastMoneyClient.getRealtimeQuote(stockCode, StockInfo.toEastMoneyMarketCode(market));
+                if (realtimeDTO != null) {
+                    if (StringUtils.hasText(realtimeDTO.getStockName())) {
+                        remote.put("stockName", realtimeDTO.getStockName());
+                    }
+                    if (StringUtils.hasText(realtimeDTO.getIndustry())) {
+                        remote.put("industry", realtimeDTO.getIndustry());
+                    }
+                }
+            }
+            StockInfo created = upsertStockInfo(remote, remote.get("industry"), source);
+            if (created != null) {
+                return created;
+            }
+        }
+        return null;
+    }
+
     private boolean shouldRefreshIndustry(StockInfo stockInfo, String currentIndustry) {
         return stockInfo != null
                 && StockInfo.isTradableAStock(stockInfo.getStockCode(), stockInfo.getMarket())
@@ -1152,6 +1220,13 @@ public class MarketServiceImpl implements MarketService {
             return;
         }
         boolean changed = false;
+        if (realtimeDTO != null
+                && StringUtils.hasText(realtimeDTO.getStockName())
+                && (TextEncodingUtils.hasCorruptedDisplayText(stockInfo.getStockName())
+                || !realtimeDTO.getStockName().equals(stockInfo.getStockName()))) {
+            stockInfo.setStockName(realtimeDTO.getStockName());
+            changed = true;
+        }
         if (!StringUtils.hasText(stockInfo.getBoard())) {
             stockInfo.setBoard(StockInfo.resolveBoard(stockInfo.getStockCode(), stockInfo.getMarket()));
             changed = true;
@@ -1159,6 +1234,11 @@ public class MarketServiceImpl implements MarketService {
         if ((!StringUtils.hasText(stockInfo.getIndustry()) || shouldRefreshIndustry(stockInfo, stockInfo.getIndustry()))
                 && realtimeDTO != null
                 && StringUtils.hasText(realtimeDTO.getIndustry())) {
+            stockInfo.setIndustry(realtimeDTO.getIndustry());
+            changed = true;
+        } else if (realtimeDTO != null
+                && StringUtils.hasText(realtimeDTO.getIndustry())
+                && TextEncodingUtils.hasCorruptedDisplayText(stockInfo.getIndustry())) {
             stockInfo.setIndustry(realtimeDTO.getIndustry());
             changed = true;
         }

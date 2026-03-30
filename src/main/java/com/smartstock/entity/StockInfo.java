@@ -1,6 +1,7 @@
 package com.smartstock.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.smartstock.util.TextEncodingUtils;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -127,5 +128,21 @@ public class StockInfo {
         return normalized.contains("退")
                 || normalized.contains("摘牌")
                 || normalized.toUpperCase().contains("DELIST");
+    }
+
+    public String getStockName() {
+        return TextEncodingUtils.normalizeDisplayText(stockName);
+    }
+
+    public void setStockName(String stockName) {
+        this.stockName = TextEncodingUtils.normalizeDisplayText(stockName);
+    }
+
+    public String getIndustry() {
+        return TextEncodingUtils.normalizeDisplayText(industry);
+    }
+
+    public void setIndustry(String industry) {
+        this.industry = TextEncodingUtils.normalizeDisplayText(industry);
     }
 }
