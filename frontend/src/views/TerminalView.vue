@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-full min-h-0 flex-col gap-4 xl:flex-row">
+  <div class="flex h-full min-h-0 flex-col gap-4">
     <!-- Main chart section -->
     <section class="glass-panel flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
       <!-- Stock header -->
@@ -217,98 +217,6 @@
       </div>
     </section>
 
-    <!-- Trade panel -->
-    <aside class="w-full xl:w-[320px] shrink-0">
-      <div class="glass-panel p-5 h-full flex flex-col">
-        <div class="mb-5 flex items-center justify-between">
-          <div>
-            <div class="data-label">模拟交易</div>
-            <h3 class="mt-1 font-display text-lg font-black tracking-tight text-white">委托面板</h3>
-          </div>
-          <span class="tag-badge">A股 T+1</span>
-        </div>
-
-        <!-- Buy/Sell toggle -->
-        <div class="mb-5 flex rounded-xl border border-darkBorder bg-darkBg/50 p-1">
-          <button
-            type="button"
-            class="flex-1 rounded-lg py-2 text-sm font-bold transition"
-            :class="side === 'buy' ? 'bg-upPrice text-white shadow-[0_6px_20px_rgba(239,68,68,0.25)]' : 'text-slate-500 hover:text-slate-300'"
-            @click="side = 'buy'"
-          >买入</button>
-          <button
-            type="button"
-            class="flex-1 rounded-lg py-2 text-sm font-bold transition"
-            :class="side === 'sell' ? 'bg-downPrice text-white shadow-[0_6px_20px_rgba(16,185,129,0.25)]' : 'text-slate-500 hover:text-slate-300'"
-            @click="side = 'sell'"
-          >卖出</button>
-        </div>
-
-        <div class="space-y-3 flex-1">
-          <div class="rounded-xl bg-darkBg/60 p-4 border border-darkBorder/40 focus-within:border-primary/30 transition-colors">
-            <div class="mb-2 flex items-center justify-between">
-              <label class="data-label">委托价格</label>
-              <span class="text-[10px] text-slate-600 font-mono">{{ activePeriodLabel }}</span>
-            </div>
-            <div class="relative">
-              <span class="absolute left-0 top-1/2 -translate-y-1/2 font-mono text-slate-600 text-sm">¥</span>
-              <input
-                v-model.number="price"
-                type="number"
-                step="0.01"
-                class="w-full bg-transparent pl-5 text-right font-mono text-2xl font-bold text-white placeholder-slate-700 focus:outline-none"
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          <div class="rounded-xl bg-darkBg/60 p-4 border border-darkBorder/40 focus-within:border-primary/30 transition-colors">
-            <div class="mb-2 flex items-center justify-between">
-              <label class="data-label">委托数量</label>
-              <span class="text-[10px] text-slate-600 font-mono">100 股整数倍</span>
-            </div>
-            <input
-              v-model.number="quantity"
-              type="number"
-              step="100"
-              class="w-full bg-transparent text-right font-mono text-2xl font-bold text-white placeholder-slate-700 focus:outline-none"
-              placeholder="0"
-            />
-            <div class="mt-3 grid grid-cols-4 gap-1.5">
-              <button
-                v-for="lot in quickLots"
-                :key="lot"
-                type="button"
-                class="rounded-lg border border-darkBorder bg-darkCard/50 py-1 text-[11px] font-mono font-semibold text-slate-500 transition hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
-                @click="quantity = lot"
-              >{{ lot }}</button>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3 px-1">
-            <div>
-              <div class="data-label">可用资金</div>
-              <div class="mt-1 font-mono text-xs font-semibold text-white">{{ formatMoney(account?.availableCash) }}</div>
-            </div>
-            <div class="text-right">
-              <div class="data-label">预计交易额</div>
-              <div class="mt-1 font-mono text-xs font-semibold text-white">{{ formatMoney(estimatedAmount) }}</div>
-            </div>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          class="mt-4 w-full rounded-xl py-3.5 text-sm font-display font-black uppercase tracking-[0.2em] text-white transition"
-          :class="side === 'buy'
-            ? 'bg-upPrice shadow-[0_8px_30px_rgba(239,68,68,0.25)] hover:shadow-[0_8px_40px_rgba(239,68,68,0.4)] hover:bg-red-500'
-            : 'bg-downPrice shadow-[0_8px_30px_rgba(16,185,129,0.25)] hover:shadow-[0_8px_40px_rgba(16,185,129,0.4)] hover:bg-emerald-500'"
-          @click="submitOrder"
-        >
-          确认{{ side === 'buy' ? '买入' : '卖出' }}
-        </button>
-      </div>
-    </aside>
   </div>
 </template>
 
@@ -319,7 +227,7 @@ import { init as klineInit, dispose as klineDispose, type Chart as KlineChart, t
 import request from '../utils/request'
 import { renderMarkdown } from '../utils/markdown'
 import { useToastStore } from '../stores/toast'
-import type { StockDetailVO, AccountVO, QaAnswerVO, QaHistoryVO } from '../types'
+import type { StockDetailVO, QaAnswerVO, QaHistoryVO } from '../types'
 
 type PeriodValue = '1s' | '1min' | '5min' | '15min' | '30min' | '60min' | 'day' | 'week' | 'month'
 type IndicatorValue = 'macd' | 'kdj' | 'rsi'
@@ -342,8 +250,6 @@ const INDICATOR_OPTIONS: Array<{ label: string; value: IndicatorValue; klineName
   { label: 'RSI',  value: 'rsi',  klineName: 'RSI' },
 ]
 
-const quickLots = [100, 500, 1000, 2000]
-
 const route = useRoute()
 const router = useRouter()
 const toast = useToastStore()
@@ -351,10 +257,6 @@ const chartContainerRef = ref<HTMLDivElement | null>(null)
 const code = ref((route.params.code as string) || '000001')
 const stockName = ref('')
 const detail = ref<StockDetailVO | null>(null)
-const account = ref<AccountVO | null>(null)
-const side = ref<'buy' | 'sell'>('buy')
-const price = ref(0)
-const quantity = ref(100)
 const activePeriod = ref<PeriodValue>('day')
 const activeIndicator = ref<IndicatorValue>('macd')
 const lastQuoteSync = ref('')
@@ -374,14 +276,12 @@ let currentIndicatorKlineName = 'MACD'
 let resizeObserver: ResizeObserver | null = null
 let quoteTimer: number | undefined
 let pollingBusy = false
-let accountPollCount = 0
 let lastCrosshair: Crosshair | null = null
 
 const liveBarSubscribers = new Set<(data: KLineData) => void>()
 
 // ─── Computed ───────────────────────────────────────────────────────────────
 const activePeriodLabel = computed(() => PERIOD_OPTIONS.find(p => p.value === activePeriod.value)?.label ?? activePeriod.value)
-const estimatedAmount = computed(() => Number(price.value || 0) * Number(quantity.value || 0))
 const refreshLabel = computed(() => {
   if (lastPollSync.value && lastQuoteSync.value && lastPollSync.value !== lastQuoteSync.value) {
     return `1s · 刷新 ${lastPollSync.value} · 行情 ${lastQuoteSync.value}`
@@ -700,13 +600,8 @@ const fetchDetail = async () => {
     const res: any = await request.get(`/market/stocks/${code.value}`)
     detail.value = res
     stockName.value = res.stockName
-    if (!price.value || side.value === 'buy') price.value = Number(res.currentPrice || 0)
     lastQuoteSync.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
   } catch (e) { console.error(e) }
-}
-
-const fetchAcc = async () => {
-  try { account.value = await request.get('/trade/account') } catch (e) { console.error(e) }
 }
 
 const fetchQaHistory = async () => {
@@ -754,7 +649,7 @@ const switchIndicator = (ind: IndicatorValue) => {
 }
 
 const refreshAll = async () => {
-  await Promise.all([fetchDetail(), fetchKLine(), fetchAcc()])
+  await Promise.all([fetchDetail(), fetchKLine()])
 }
 
 const addToWatchlist = async () => {
@@ -769,20 +664,6 @@ const addToWatchlist = async () => {
 
 const openCopilot = () => {
   router.push(`/copilot/${code.value}`)
-}
-
-const submitOrder = async () => {
-  try {
-    await request.post(`/trade/${side.value}`, {
-      stockCode: code.value,
-      price: price.value,
-      quantity: quantity.value
-    })
-    toast.success(`${side.value === 'buy' ? '买入' : '卖出'} ${code.value} 委托成功，数量: ${quantity.value}`)
-    await refreshAll()
-  } catch (err: any) {
-    toast.error(err.message || '委托失败')
-  }
 }
 
 const askAi = async () => {
@@ -828,18 +709,12 @@ const stopQuotePolling = () => {
 
 const startQuotePolling = () => {
   stopQuotePolling()
-  accountPollCount = 0
   quoteTimer = window.setInterval(async () => {
     if (pollingBusy) return
     pollingBusy = true
     lastPollSync.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
     try {
       await Promise.all([fetchDetail(), fetchKLine(true)])
-      accountPollCount += 1
-      if (accountPollCount >= 5) {
-        accountPollCount = 0
-        await fetchAcc()
-      }
     } catch (e) {
       console.error(e)
     } finally {

@@ -1,0 +1,53 @@
+@startuml
+actor "用户 (User)" as User
+participant "AnalysisController" as Ctrl
+participant "AnalysisServiceImpl" as Svc
+participant "外部AI分析服务\n(Python/Gemini)" as AI
+database "MySQL" as DB
+
+== 股票分析生成 (FR-06) ==
+
+User -> Ctrl: POST /api/analysis/{stockCode}
+activate Ctrl
+Ctrl -> Svc: generateAnalysis(userId, stockCode)
+activate Svc
+
+Svc -> DB: 查询最新 K 线及行情数据
+activate DB
+DB --> Svc: 返回行情数据
+deactivate DB
+
+Svc -> AI: 推送行情数据，请求生成情绪摘要
+activate AI
+AI --> Svc: 返回情绪分析报告
+deactivate AI
+
+Svc -> DB: 写入 ai_analysis 表
+Svc --> Ctrl: 返回分析结果
+Ctrl --> User: 返回分析报告 (JSON)
+deactivate Svc
+deactivate Ctrl
+
+== 上下文问答 (FR-07) ==
+
+User -> Ctrl: POST /api/analysis/{stockCode}/qa\n(携带用户问题)
+activate Ctrl
+Ctrl -> Svc: askQuestion(userId, stockCode, question)
+activate Svc
+
+Svc -> DB: 查询最新 ai_analysis 作为上下文
+activate DB
+DB --> Svc: 返回已有分析记录
+deactivate DB
+
+Svc -> AI: 以分析结果为背景上下文\n发送用户问题
+activate AI
+AI --> Svc: 返回问答回复
+deactivate AI
+
+Svc -> DB: 写入 qa_history 表
+Svc --> Ctrl: 返回问答结果
+Ctrl --> User: 返回回答内容 (JSON)
+deactivate Svc
+deactivate Ctrl
+@enduml

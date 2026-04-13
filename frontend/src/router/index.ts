@@ -44,11 +44,6 @@ const router = createRouter({
           name: 'News',
           component: () => import('../views/NewsView.vue'),
         },
-        {
-          path: 'portfolio',
-          name: 'Portfolio',
-          component: () => import('../views/PortfolioView.vue'),
-        }
       ]
     }
   ]

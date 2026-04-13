@@ -2,7 +2,8 @@
   <div class="flex flex-col h-screen text-slate-200">
     <!-- Navbar -->
     <header class="h-14 flex items-center justify-between px-5 border-b border-darkBorder/80 bg-darkCard/95 backdrop-blur-xl z-20 shrink-0 relative">
-      <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent"></div>
+      <div class="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-primary/60 to-transparent"></div>
+      <div class="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/10 to-transparent"></div>
 
       <div class="flex items-center space-x-8">
         <!-- Mobile menu button -->
@@ -31,6 +32,7 @@
             :to="link.to"
             class="nav-link"
             active-class="active-nav">
+            <component :is="link.icon" class="w-3.5 h-3.5" />
             {{ link.label }}
           </router-link>
         </nav>
@@ -170,6 +172,7 @@
             active-class="!text-primary !bg-primary/10"
             @click="mobileMenuOpen = false"
           >
+            <component :is="link.icon" class="w-4 h-4" />
             {{ link.label }}
           </router-link>
         </nav>
@@ -197,7 +200,7 @@
     </Transition>
 
     <!-- Main Workspace -->
-    <main class="flex-1 min-h-0 overflow-hidden bg-darkBg relative p-5">
+    <main class="flex-1 min-h-0 overflow-hidden bg-darkBg relative p-4 md:p-5">
       <router-view />
     </main>
   </div>
@@ -206,18 +209,17 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, LogOut, Menu, X, User, ChevronDown } from 'lucide-vue-next'
+import { Search, LogOut, Menu, X, User, ChevronDown, LayoutDashboard, ScanSearch, Bot, Monitor, Newspaper } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import request from '../utils/request'
 
 const navLinks = [
-  { to: '/dashboard', label: '自选大本营' },
-  { to: '/screener', label: '智能选股' },
-  { to: '/copilot', label: 'AI 问答' },
-  { to: '/terminal', label: '行情终端' },
-  { to: '/news', label: '市场快讯' },
-  { to: '/portfolio', label: '我的资产' },
+  { to: '/dashboard', label: '自选大本营', icon: LayoutDashboard },
+  { to: '/screener', label: '智能选股', icon: ScanSearch },
+  { to: '/copilot', label: 'AI 问答', icon: Bot },
+  { to: '/terminal', label: '行情终端', icon: Monitor },
+  { to: '/news', label: '市场快讯', icon: Newspaper },
 ]
 
 const router = useRouter()
@@ -320,11 +322,11 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .nav-link {
-  @apply h-8 inline-flex items-center px-3 rounded-lg text-sm font-medium text-slate-500
+  @apply h-8 inline-flex items-center gap-1.5 px-3 rounded-lg text-sm font-medium text-slate-500
     hover:text-slate-200 hover:bg-white/5 transition-all;
 }
 .active-nav {
-  @apply text-primary bg-primary/10 hover:bg-primary/10;
+  @apply text-primary bg-primary/10 hover:bg-primary/10 shadow-[0_0_12px_rgba(34,211,238,0.08)];
 }
 
 /* Dropdown transitions */

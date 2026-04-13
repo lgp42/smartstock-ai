@@ -1,0 +1,120 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam roundcorner 5
+
+package "边界类 (Boundary)" {
+    class LoginController {
+        +login(email, password): TokenResponse
+        +logout(token): void
+    }
+    class RegisterController {
+        +register(email, password): void
+    }
+    class StockController {
+        +search(keyword): List<StockInfo>
+        +getKLine(code, period): KLineData
+        +getIndicators(code): IndicatorData
+    }
+    class WatchlistController {
+        +add(stockCode): void
+        +remove(stockCode): void
+        +list(): List<UserWatchlist>
+    }
+    class AnalysisController {
+        +generateAnalysis(stockCode): AnalysisResult
+    }
+    class QAController {
+        +ask(stockCode, question): String
+    }
+    class EastMoneyClient {
+        +fetchKLine(code, period): List<KLinePoint>
+        +fetchStockInfo(keyword): List<StockInfo>
+    }
+    class AIClient {
+        +requestAnalysis(stockData): String
+    }
+    class GeminiClient {
+        +sendWithContext(context, question): String
+    }
+}
+
+package "控制类 (Control)" {
+    class AuthService {
+        +register(email, password): void
+        +authenticate(email, password): String
+        +invalidateToken(token): void
+    }
+    class StockService {
+        +search(keyword): List<StockInfo>
+        +getKLine(code, period): KLineData
+        +calcMACD(code): MACDData
+        +calcKDJ(code): KDJData
+        +calcRSI(code): RSIData
+    }
+    class WatchlistService {
+        +add(userId, stockCode): void
+        +remove(userId, stockCode): void
+        +list(userId): List<UserWatchlist>
+    }
+    class AnalysisService {
+        +generateAnalysis(userId, stockCode): AnalysisResult
+        +findLatestAnalysis(stockCode): AIAnalysis
+    }
+    class QAService {
+        +askQuestion(userId, stockCode, question): String
+    }
+}
+
+package "实体类 (Entity)" {
+    class User {
+        userId: Long
+        email: String
+        password: String
+        nickname: String
+    }
+    class StockInfo {
+        stockCode: String
+        stockName: String
+        industry: String
+        market: String
+    }
+    class UserWatchlist {
+        id: Long
+        userId: Long
+        stockCode: String
+    }
+    class AIAnalysis {
+        id: Long
+        userId: Long
+        stockCode: String
+        analysisType: String
+        outputText: Text
+        createdAt: DateTime
+    }
+    class QAHistory {
+        id: Long
+        userId: Long
+        stockCode: String
+        question: Text
+        answer: Text
+        createdAt: DateTime
+    }
+}
+
+LoginController --> AuthService
+RegisterController --> AuthService
+StockController --> StockService
+WatchlistController --> WatchlistService
+AnalysisController --> AnalysisService
+QAController --> QAService
+
+StockService --> EastMoneyClient
+AnalysisService --> AIClient
+QAService --> GeminiClient
+
+AuthService --> User
+StockService --> StockInfo
+WatchlistService --> UserWatchlist
+AnalysisService --> AIAnalysis
+QAService --> QAHistory
+@enduml

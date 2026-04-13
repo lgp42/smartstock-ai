@@ -1,0 +1,61 @@
+@startuml
+actor "用户 (User)" as User
+participant "StockController" as Ctrl
+participant "StockService" as Svc
+database "StockRepository\n(MySQL)" as DB
+participant "EastMoneyClient" as EMC
+database "Redis" as Redis
+
+== 股票搜索 ==
+
+User -> Ctrl: GET /api/stock/search?keyword=xxx
+activate Ctrl
+Ctrl -> Svc: search(keyword)
+activate Svc
+
+Svc -> DB: findByKeyword(keyword)
+activate DB
+DB --> Svc: 返回本地匹配结果
+deactivate DB
+
+alt 本地有数据
+    Svc --> Ctrl: 返回股票列表
+    Ctrl --> User: 返回 200 + 股票列表
+else 本地无数据
+    Svc -> EMC: fetchStockInfo(keyword)
+    activate EMC
+    EMC --> Svc: 返回远程数据
+    deactivate EMC
+    Svc -> DB: save(stockInfo)（补充落库）
+    Svc --> Ctrl: 返回股票列表
+    Ctrl --> User: 返回 200 + 股票列表
+end
+deactivate Svc
+deactivate Ctrl
+
+== K 线数据查询 ==
+
+User -> Ctrl: GET /api/stock/kline?code=xxx&period=day
+activate Ctrl
+Ctrl -> Svc: getKLine(code, period)
+activate Svc
+
+Svc -> Redis: GET kline:<code>:<period>
+activate Redis
+Redis --> Svc: 返回缓存结果（或 null）
+deactivate Redis
+
+alt 缓存命中
+    Svc --> Ctrl: 返回 K 线数据
+else 缓存未命中
+    Svc -> EMC: fetchKLine(code, period)
+    activate EMC
+    EMC --> Svc: 返回 K 线列表
+    deactivate EMC
+    Svc -> Redis: SET kline:<code>:<period> EX 300
+    Svc --> Ctrl: 返回 K 线数据
+end
+Ctrl --> User: 返回 200 + K 线数据
+deactivate Svc
+deactivate Ctrl
+@enduml

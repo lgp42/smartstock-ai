@@ -36,10 +36,6 @@
 | 1001 | 用户不存在 |
 | 1002 | 用户已存在 |
 | 2001 | 股票不存在 |
-| 3001 | 资金不足 |
-| 3002 | 持仓不足 |
-| 3003 | 数量非法 |
-| 3004 | 价格超限 |
 | 4001 | 自选股数量超限 |
 | 4002 | 自选股已存在 |
 
@@ -286,80 +282,7 @@ GET /api/market/stocks/search?keyword=平安&limit=3
 
 ---
 
-## 2.5 模拟交易接口
-
-### GET /trade/account
-
-获取账户资产汇总。
-
-返回字段：
-
-- `userId`
-- `totalAssets`
-- `availableCash`
-- `frozenCash`
-- `positionValue`
-- `totalProfit`
-- `profitRate`
-
-### POST /trade/buy
-
-买入。
-
-请求体：
-
-```json
-{
-  "stockCode": "000001",
-  "price": 11.00,
-  "quantity": 100
-}
-```
-
-规则：
-
-- `price >= 0.01`
-- `price` 最多 2 位小数
-- `quantity >= 100`
-- `quantity` 必须是 100 的整数倍
-
-### POST /trade/sell
-
-卖出。
-
-请求体同买入。
-
-额外规则：
-
-- 必须有足够可卖持仓
-
-### GET /trade/positions
-
-查询当前持仓。
-
-### GET /trade/records
-
-查询交易记录。
-
-参数：
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `stockCode` | String | 否 | 股票代码筛选 |
-| `tradeType` | String | 否 | 仅支持 `buy` 或 `sell` |
-| `startDate` | String | 否 | 支持 `yyyy-MM-dd` / `yyyy-MM-dd HH:mm` / `yyyy-MM-dd HH:mm:ss` / `yyyy-MM-ddTHH:mm:ss` |
-| `endDate` | String | 否 | 支持 `yyyy-MM-dd` / `yyyy-MM-dd HH:mm` / `yyyy-MM-dd HH:mm:ss` / `yyyy-MM-ddTHH:mm:ss` |
-| `page` | Integer | 否 | 默认 1，最小 1 |
-| `pageSize` | Integer | 否 | 默认 20，范围 1-100 |
-
-规则：
-
-- `startDate` 不能晚于 `endDate`
-- 仅传日期时，开始时间按 `00:00:00`，结束时间按 `23:59:59` 处理
-
----
-
-## 2.6 新闻接口
+## 2.5 新闻接口
 
 ### GET /news/flash
 
@@ -395,7 +318,7 @@ GET /api/market/stocks/search?keyword=平安&limit=3
 
 ---
 
-## 2.7 AI 分析接口
+## 2.6 AI 分析接口
 
 ### GET /analysis/health
 
@@ -487,7 +410,7 @@ GET /api/market/stocks/search?keyword=平安&limit=3
 
 ---
 
-## 2.8 AI 问答接口
+## 2.7 AI 问答接口
 
 ### POST /qa/ask
 
@@ -574,7 +497,6 @@ GET /api/market/stocks/search?keyword=平安&limit=3
 4. 调 AI 分析接口
 5. 调 AI 问答接口
 6. 调自选股接口
-7. 调交易接口
 
 如果是受保护接口，请确认请求头已带：
 

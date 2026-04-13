@@ -3,22 +3,25 @@
     <!-- Header -->
     <div class="glass-panel px-5 py-3.5 shrink-0 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <span class="w-1 h-4 bg-primary rounded-full"></span>
+        <span class="w-1 h-5 bg-gradient-to-b from-primary to-primary/30 rounded-full"></span>
         <h2 class="font-display font-bold text-base text-white">市场快讯</h2>
         <span class="tag-badge text-primary/70 border-primary/20 bg-primary/5">AI 情报</span>
       </div>
       <div class="flex items-center gap-2">
+        <button @click="sidebarOpen = !sidebarOpen" class="md:hidden text-xs font-semibold text-slate-500 hover:text-slate-300 px-3 py-1.5 rounded-lg border border-darkBorder hover:border-slate-600 transition">
+          {{ sidebarOpen ? '收起' : '分类' }}
+        </button>
         <input v-model="keyword" type="text" placeholder="搜索关键词 / 股票代码..."
-          class="cyber-input h-8 w-56 text-xs" />
-        <button class="text-xs font-semibold text-primary px-3 py-1.5 rounded-lg border border-primary/25 bg-primary/5 hover:bg-primary/10 transition">
+          class="cyber-input h-8 w-40 md:w-56 text-xs" />
+        <button class="hidden sm:block text-xs font-semibold text-primary px-3 py-1.5 rounded-lg border border-primary/25 bg-primary/5 hover:bg-primary/10 transition">
           订阅推送
         </button>
       </div>
     </div>
 
-    <div class="flex-1 flex gap-4 min-h-0">
+    <div class="flex-1 flex flex-col md:flex-row gap-4 min-h-0">
       <!-- Sidebar -->
-      <div class="w-52 glass-panel flex flex-col min-h-0 shrink-0 p-3">
+      <div class="w-full md:w-52 glass-panel flex flex-col min-h-0 shrink-0 p-3" :class="sidebarOpen ? '' : 'hidden md:flex'">
         <!-- Categories -->
         <div class="space-y-0.5">
           <button
@@ -133,6 +136,7 @@ import request from '../utils/request'
 
 const activeCategory = ref('all')
 const keyword = ref('')
+const sidebarOpen = ref(false)
 const newsData = ref<any[]>([])
 const loading = ref(false)
 const hasMore = ref(true)

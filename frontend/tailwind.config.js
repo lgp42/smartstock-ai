@@ -43,6 +43,7 @@ export default {
         'price-pulse': 'price-pulse 1.5s ease-in-out infinite',
         'slide-in': 'slide-in 0.3s ease-out both',
         'glow-pulse': 'glow-pulse 2s ease-in-out infinite',
+        'float': 'float 3s ease-in-out infinite',
       },
     },
   },

@@ -35,68 +35,6 @@ export interface UserLoginDTO {
   password: string
 }
 
-// Trade
-export interface AccountVO {
-  userId: number
-  totalAssets: number
-  availableCash: number
-  frozenCash: number
-  positionValue: number
-  totalProfit: number
-  profitRate: number
-}
-
-export interface OrderVO {
-  orderId: number
-  stockCode: string
-  stockName: string
-  orderType: string
-  price: number
-  quantity: number
-  amount: number
-  fee: number
-  status: string
-  filledPrice: number
-  filledQuantity: number
-  filledTime: string
-}
-
-export interface PositionVO {
-  stockCode: string
-  stockName: string
-  quantity: number
-  availableQuantity: number
-  costPrice: number
-  currentPrice: number
-  marketValue: number
-  profit: number
-  profitRate: number
-}
-
-export interface TradeRecordVO {
-  recordId: number
-  stockCode: string
-  stockName: string
-  tradeType: 'buy' | 'sell'
-  price: number
-  quantity: number
-  amount: number
-  fee: number
-  tradeTime: string
-}
-
-export interface BuyOrderDTO {
-  stockCode: string
-  price: number
-  quantity: number
-}
-
-export interface SellOrderDTO {
-  stockCode: string
-  price: number
-  quantity: number
-}
-
 // Market
 export interface StockDetailVO {
   stockCode: string
@@ -212,14 +150,6 @@ export interface QaSessionMessageVO {
 export interface QaSessionDetailVO {
   sessionId: string
   messages: QaSessionMessageVO[]
-}
-
-// Pagination
-export interface PageVO<T> {
-  total: number
-  page: number
-  pageSize: number
-  records: T[]
 }
 
 // Toast system

@@ -3,11 +3,14 @@
     <!-- Header bar -->
     <div class="glass-panel px-5 py-3.5 shrink-0 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <span class="w-1 h-4 bg-primary rounded-full"></span>
+        <span class="w-1 h-5 bg-gradient-to-b from-primary to-primary/30 rounded-full"></span>
         <h2 class="font-display font-bold text-base text-white">智能选股助手</h2>
-        <span class="tag-badge">AI 驱动</span>
+        <span class="tag-badge border-primary/20 bg-primary/5 text-primary/80">AI 驱动</span>
       </div>
       <div class="flex gap-2">
+        <button @click="filterOpen = !filterOpen" class="md:hidden text-xs font-semibold text-slate-500 hover:text-slate-300 px-3 py-1.5 rounded-lg border border-darkBorder hover:border-slate-600 transition">
+          {{ filterOpen ? '收起筛选' : '展开筛选' }}
+        </button>
         <button @click="resetFilters" class="text-xs font-semibold text-slate-500 hover:text-slate-300 px-3 py-1.5 rounded-lg border border-darkBorder hover:border-slate-600 transition">
           重置条件
         </button>
@@ -17,9 +20,9 @@
       </div>
     </div>
 
-    <div class="flex-1 flex gap-4 min-h-0">
+    <div class="flex-1 flex flex-col md:flex-row gap-4 min-h-0">
       <!-- Filter sidebar -->
-      <div class="w-56 glass-panel flex flex-col min-h-0 overflow-y-auto p-4 shrink-0">
+      <div class="w-full md:w-56 glass-panel flex flex-col min-h-0 overflow-y-auto p-4 shrink-0" :class="filterOpen ? '' : 'hidden md:flex'">
         <div class="data-label mb-4">筛选条件</div>
 
         <div class="space-y-5">
@@ -185,6 +188,7 @@ import { useToastStore } from '../stores/toast'
 import type { ScreenerResultVO } from '../types'
 
 const loading = ref(false)
+const filterOpen = ref(false)
 const toast = useToastStore()
 const results = ref<ScreenerResultVO[]>([])
 let screenTimer: ReturnType<typeof setTimeout> | null = null

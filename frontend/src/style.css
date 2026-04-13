@@ -32,11 +32,19 @@
 
 @layer components {
   .glass-panel {
-    @apply bg-darkCard/90 backdrop-blur-md border border-darkBorder/80 rounded-xl shadow-xl;
+    @apply bg-darkCard/90 backdrop-blur-md border border-darkBorder/80 rounded-2xl shadow-xl;
   }
 
   .glass-panel-hover {
-    @apply glass-panel hover:border-primary/20 transition-colors duration-300;
+    @apply glass-panel hover:border-primary/20 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(34,211,238,0.06)];
+  }
+
+  .glass-panel-accent {
+    @apply glass-panel relative overflow-hidden;
+  }
+  .glass-panel-accent::before {
+    content: '';
+    @apply absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent;
   }
 
   .cyber-input {
@@ -76,7 +84,20 @@
 
   .tag-badge {
     @apply inline-flex items-center rounded-full border border-slate-700/60 bg-slate-900/60 px-2.5 py-0.5
-      text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400;
+      text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400
+      shadow-[0_0_8px_rgba(0,0,0,0.2)];
+  }
+
+  .stat-card {
+    @apply glass-panel relative overflow-hidden p-4 flex flex-col justify-center transition-all duration-300 hover:border-primary/15;
+  }
+  .stat-card::after {
+    content: '';
+    @apply absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-0 transition-opacity duration-500 pointer-events-none;
+    background: radial-gradient(circle, rgba(34,211,238,0.08) 0%, transparent 70%);
+  }
+  .stat-card:hover::after {
+    @apply opacity-100;
   }
 
   .markdown-body {
@@ -160,16 +181,52 @@
   .num-flash {
     animation: price-pulse 0.8s ease-in-out;
   }
+  .hover-lift {
+    @apply transition-all duration-300;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  }
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(34, 211, 238, 0.04) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 3s ease-in-out infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* Route transition */
 .page-enter-active {
-  transition: opacity 0.2s ease-out;
+  transition: all 0.25s ease-out;
 }
 .page-leave-active {
-  transition: opacity 0.15s ease-in;
+  transition: all 0.15s ease-in;
 }
-.page-enter-from,
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(4px);
+}
 .page-leave-to {
   opacity: 0;
 }

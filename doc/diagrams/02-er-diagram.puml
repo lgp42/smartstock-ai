@@ -1,0 +1,42 @@
+@startuml
+skinparam roundcorner 5
+
+entity "users \n(用户表)" as User {
+  * user_id [PK]
+  --
+  email
+  password
+  nickname
+}
+
+entity "stock_info \n(股票花名册)" as StockInfo {
+  * stock_code [PK]
+  --
+  stock_name
+  industry
+  market
+}
+
+entity "user_watchlist \n(自选股记录)" as Watchlist {
+  * id [PK]
+  --
+  user_id [FK]
+  stock_code [FK]
+}
+
+entity "ai_analysis / qa_history \n(智能分析记录)" as Analysis {
+  * id [PK]
+  --
+  user_id [FK]
+  stock_code [FK]
+  analysis_type
+  output_text
+}
+
+User ||--o{ Watchlist : 关注 (1:N)
+Watchlist }o--|| StockInfo : 挂钩 (N:1)
+
+User ||--o{ Analysis : 提问或阅览 (1:N)
+Analysis }o--|| StockInfo : 分析对象 (N:1)
+
+@enduml

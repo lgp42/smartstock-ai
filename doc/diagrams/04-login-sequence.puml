@@ -1,0 +1,49 @@
+@startuml
+actor "用户 (User)" as User
+participant "LoginController" as Ctrl
+participant "AuthService" as Svc
+database "UserRepository\n(MySQL)" as DB
+database "Redis" as Redis
+
+User -> Ctrl: POST /api/auth/login\n(email, password)
+activate Ctrl
+Ctrl -> Svc: authenticate(email, password)
+activate Svc
+
+Svc -> DB: findByEmail(email)
+activate DB
+DB --> Svc: 返回 User 实体（或 null）
+deactivate DB
+
+alt 邮箱不存在
+    Svc --> Ctrl: 抛出 AuthException
+    Ctrl --> User: 返回 401 未授权
+else 邮箱存在
+    Svc -> Svc: BCrypt.matches(password, storedHash)
+    alt 密码不匹配
+        Svc --> Ctrl: 抛出 AuthException
+        Ctrl --> User: 返回 401 未授权
+    else 密码匹配
+        Svc -> Svc: 生成 JWT Token
+        Svc --> Ctrl: 返回 token
+        Ctrl --> User: 返回 200 + token
+    end
+end
+deactivate Svc
+deactivate Ctrl
+
+== 登出流程 ==
+
+User -> Ctrl: POST /api/auth/logout\n(Authorization: Bearer <token>)
+activate Ctrl
+Ctrl -> Svc: invalidateToken(token)
+activate Svc
+Svc -> Redis: SET blacklist:<token> EX <ttl>
+activate Redis
+Redis --> Svc: OK
+deactivate Redis
+Svc --> Ctrl: void
+Ctrl --> User: 返回 200 登出成功
+deactivate Svc
+deactivate Ctrl
+@enduml

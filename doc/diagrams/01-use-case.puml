@@ -1,0 +1,23 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "系统用户" as User
+actor "东方财富API" as EastMoney
+actor "外部AI分析服务/Gemini" as AIService
+
+package "SmartStock AI 智能股票交易辅助系统" {
+  usecase "1. 用户管理 (注册/登录/修改信息)" as UC1
+  usecase "2. 行情查询 (搜股票/K线/指标)" as UC2
+  usecase "3. 自选管理 (增加/删除/查看)" as UC3
+  usecase "4. 智能分析 (股票分析/提取摘要/问答)" as UC4
+}
+
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+
+UC2 ..> EastMoney : <<依赖>> (拉取实盘数据)
+UC4 ..> AIService : <<依赖>> (推送分析/生成报告)
+@enduml

@@ -41,13 +41,14 @@
     </div>
 
     <!-- Right Registration Panel -->
-    <div class="w-full lg:w-1/2 flex items-center justify-center p-8 bg-darkBg relative">
+    <div class="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 bg-darkBg relative">
       <div class="absolute inset-0 bg-gradient-to-br from-darkCard/30 to-transparent pointer-events-none"></div>
+      <div class="absolute top-1/4 right-1/3 w-60 h-60 rounded-full bg-primary/3 blur-[100px] pointer-events-none"></div>
 
       <div class="w-full max-w-sm relative z-10">
         <!-- Mobile logo -->
         <div class="flex lg:hidden items-center gap-2 mb-10 justify-center">
-          <div class="w-8 h-8 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center">
+          <div class="w-8 h-8 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center animate-float">
             <svg class="w-4 h-4 text-primary" viewBox="0 0 16 16" fill="none">
               <path d="M2 12 L5 7 L8 9 L11 4 L14 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
               <circle cx="14" cy="6" r="1.2" fill="currentColor"/>
@@ -57,8 +58,12 @@
         </div>
 
         <div class="mb-8">
+          <div class="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-[10px] font-mono font-semibold text-primary/80 tracking-widest uppercase mb-4">
+            <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+            免费注册
+          </div>
           <h2 class="font-display font-bold text-2xl text-white mb-1 tracking-tight">创建账户</h2>
-          <p class="text-sm text-slate-500">注册获取模拟交易账户</p>
+          <p class="text-sm text-slate-500">注册获取百万模拟资金交易账户</p>
         </div>
 
         <form @submit.prevent="handleRegister" class="space-y-4">
