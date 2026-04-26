@@ -71,6 +71,21 @@
             {{ error }}
           </div>
 
+          <div class="grid grid-cols-2 gap-2 rounded-xl border border-darkBorder bg-darkCard/60 p-1">
+            <button
+              type="button"
+              class="h-8 rounded-lg text-xs font-display font-bold transition-colors"
+              :class="registerMode === 'email' ? 'bg-primary text-darkBg' : 'text-slate-500 hover:text-slate-200'"
+              @click="registerMode = 'email'"
+            >邮箱</button>
+            <button
+              type="button"
+              class="h-8 rounded-lg text-xs font-display font-bold transition-colors"
+              :class="registerMode === 'phone' ? 'bg-primary text-darkBg' : 'text-slate-500 hover:text-slate-200'"
+              @click="registerMode = 'phone'"
+            >手机号</button>
+          </div>
+
           <div class="space-y-1.5">
             <label class="data-label">昵称</label>
             <input
@@ -84,12 +99,22 @@
           </div>
 
           <div class="space-y-1.5">
-            <label class="data-label">邮箱地址</label>
+            <label class="data-label">{{ registerMode === 'email' ? '邮箱地址' : '手机号' }}</label>
             <input
+              v-if="registerMode === 'email'"
               v-model="form.email"
               type="email"
               required
               placeholder="name@company.com"
+              class="cyber-input w-full h-10"
+            />
+            <input
+              v-else
+              v-model="form.phone"
+              type="tel"
+              required
+              maxlength="11"
+              placeholder="13800138000"
               class="cyber-input w-full h-10"
             />
           </div>
@@ -160,10 +185,12 @@ const authStore = useAuthStore()
 const toast = useToastStore()
 const loading = ref(false)
 const error = ref('')
+const registerMode = ref<'email' | 'phone'>('email')
 
 const form = reactive({
   nickname: '',
   email: '',
+  phone: '',
   password: '',
   confirmPassword: ''
 })
@@ -179,8 +206,11 @@ const passwordStrength = computed(() => {
 })
 
 const isFormValid = computed(() => {
+  const accountReady = registerMode.value === 'phone'
+    ? /^1[3-9]\d{9}$/.test(form.phone.trim())
+    : !!form.email.trim()
   return form.nickname.trim() &&
-    form.email.trim() &&
+    accountReady &&
     form.password.length >= 8 &&
     form.password === form.confirmPassword
 })
@@ -190,7 +220,11 @@ const handleRegister = async () => {
   loading.value = true
   error.value = ''
   try {
-    await authStore.register(form.email, form.password, form.nickname)
+    if (registerMode.value === 'phone') {
+      await authStore.registerByPhone(form.phone, form.password, form.nickname)
+    } else {
+      await authStore.register(form.email, form.password, form.nickname)
+    }
     toast.success('注册成功，请登录')
     router.push('/login')
   } catch (err: any) {

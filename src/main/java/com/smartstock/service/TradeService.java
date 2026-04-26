@@ -18,6 +18,11 @@ public interface TradeService {
 
     OrderVO sell(Long userId, SellOrderDTO dto);
 
+    OrderVO cancelOrder(Long userId, Long orderId);
+
+    PageVO<OrderVO> getOrders(Long userId, String stockCode, String orderType, String status,
+                              int page, int pageSize);
+
     List<PositionVO> getPositions(Long userId);
 
     PageVO<TradeRecordVO> getTradeRecords(Long userId, String stockCode, String tradeType,

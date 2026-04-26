@@ -9,6 +9,7 @@ export interface ApiResponse<T> {
 export interface LoginVO {
   userId: number
   email: string
+  phone?: string
   nickname: string
   avatar: string
   createdAt: string
@@ -19,6 +20,7 @@ export interface LoginVO {
 export interface UserVO {
   userId: number
   email: string
+  phone?: string
   nickname: string
   avatar: string
   createdAt: string
@@ -33,6 +35,17 @@ export interface UserRegisterDTO {
 export interface UserLoginDTO {
   email: string
   password: string
+}
+
+export interface PhoneLoginDTO {
+  phone: string
+  password: string
+}
+
+export interface PhoneRegisterDTO {
+  phone: string
+  password: string
+  nickname: string
 }
 
 // Market
@@ -115,6 +128,68 @@ export interface WatchlistVO {
   sortOrder: number
 }
 
+export interface PageVO<T> {
+  total: number
+  page: number
+  pageSize: number
+  records: T[]
+}
+
+export interface AccountVO {
+  userId: number
+  totalAssets: number
+  availableCash: number
+  frozenCash: number
+  positionValue: number
+  totalProfit: number
+  profitRate: number
+}
+
+export interface PositionVO {
+  stockCode: string
+  stockName: string
+  quantity: number
+  availableQuantity: number
+  costPrice: number
+  currentPrice: number
+  marketValue: number
+  profit: number
+  profitRate: number
+}
+
+export interface OrderVO {
+  orderId: number
+  stockCode: string
+  stockName: string
+  orderType: 'buy' | 'sell'
+  price: number
+  quantity: number
+  amount: number
+  fee: number
+  status: 'pending' | 'filled' | 'cancelled'
+  filledPrice?: number
+  filledQuantity?: number
+  filledTime?: string
+}
+
+export interface TradeRecordVO {
+  recordId: number
+  stockCode: string
+  stockName: string
+  tradeType: 'buy' | 'sell'
+  price: number
+  quantity: number
+  amount: number
+  fee: number
+  tradeTime: string
+}
+
+export interface TradeOrderDTO {
+  stockCode: string
+  price: number
+  quantity: number
+}
+
 // AI QA
 export interface QaAnswerVO {
   sessionId: string
@@ -150,6 +225,31 @@ export interface QaSessionMessageVO {
 export interface QaSessionDetailVO {
   sessionId: string
   messages: QaSessionMessageVO[]
+}
+
+export interface RiskAlertVO {
+  alertType: string
+  alertLevel: string
+  stockCode: string
+  message: string
+  value: number
+}
+
+export interface BacktestRunDTO {
+  stockCode: string
+  initialCapital: number
+  limit: number
+}
+
+export interface BacktestResultVO {
+  stockCode: string
+  strategyType: string
+  initialCapital: number
+  finalCapital: number
+  totalReturn: number
+  returnRate: number
+  maxDrawdown: number
+  tradeCount: number
 }
 
 // Toast system

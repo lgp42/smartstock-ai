@@ -86,13 +86,38 @@
             {{ error }}
           </div>
 
+          <div class="grid grid-cols-2 gap-2 rounded-xl border border-darkBorder bg-darkCard/60 p-1">
+            <button
+              type="button"
+              class="h-8 rounded-lg text-xs font-display font-bold transition-colors"
+              :class="loginMode === 'email' ? 'bg-primary text-darkBg' : 'text-slate-500 hover:text-slate-200'"
+              @click="loginMode = 'email'"
+            >邮箱</button>
+            <button
+              type="button"
+              class="h-8 rounded-lg text-xs font-display font-bold transition-colors"
+              :class="loginMode === 'phone' ? 'bg-primary text-darkBg' : 'text-slate-500 hover:text-slate-200'"
+              @click="loginMode = 'phone'"
+            >手机号</button>
+          </div>
+
           <div class="space-y-1.5">
-            <label class="data-label">邮箱地址</label>
+            <label class="data-label">{{ loginMode === 'email' ? '邮箱地址' : '手机号' }}</label>
             <input
+              v-if="loginMode === 'email'"
               v-model="form.email"
               type="email"
               required
               placeholder="name@company.com"
+              class="cyber-input w-full h-10"
+            />
+            <input
+              v-else
+              v-model="form.phone"
+              type="tel"
+              required
+              maxlength="11"
+              placeholder="13800138000"
               class="cyber-input w-full h-10"
             />
           </div>
@@ -147,11 +172,13 @@ const authStore = useAuthStore()
 const toast = useToastStore()
 const loading = ref(false)
 const error = ref('')
+const loginMode = ref<'email' | 'phone'>('email')
 const DEMO_EMAIL = 'demo@smartstock.ai'
 const DEMO_PASSWORD = 'Passw0rd!'
 
 const form = reactive({
   email: DEMO_EMAIL,
+  phone: '',
   password: DEMO_PASSWORD
 })
 
@@ -171,7 +198,11 @@ const handleLogin = async () => {
   loading.value = true
   error.value = ''
   try {
-    await authStore.login(form.email, form.password)
+    if (loginMode.value === 'phone') {
+      await authStore.loginByPhone(form.phone, form.password)
+    } else {
+      await authStore.login(form.email, form.password)
+    }
     toast.success('登录成功')
     router.push('/dashboard')
   } catch (err: any) {

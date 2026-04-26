@@ -44,6 +44,26 @@ const router = createRouter({
           name: 'News',
           component: () => import('../views/NewsView.vue'),
         },
+        {
+          path: 'trade',
+          name: 'Trade',
+          component: () => import('../views/TradeView.vue'),
+        },
+        {
+          path: 'risk',
+          name: 'Risk',
+          component: () => import('../views/RiskView.vue'),
+        },
+        {
+          path: 'settings',
+          name: 'Settings',
+          component: () => import('../views/SettingsView.vue'),
+        },
+        {
+          path: 'backtest',
+          name: 'Backtest',
+          component: () => import('../views/BacktestView.vue'),
+        },
       ]
     }
   ]

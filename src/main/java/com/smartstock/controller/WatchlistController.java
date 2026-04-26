@@ -2,6 +2,8 @@ package com.smartstock.controller;
 
 import com.smartstock.common.Result;
 import com.smartstock.dto.WatchlistAddDTO;
+import com.smartstock.dto.WatchlistBatchDTO;
+import com.smartstock.dto.WatchlistSortDTO;
 import com.smartstock.service.WatchlistService;
 import com.smartstock.util.UserContext;
 import com.smartstock.vo.WatchlistVO;
@@ -35,11 +37,35 @@ public class WatchlistController {
         return Result.ok();
     }
 
+    @PostMapping("/batch")
+    public Result<Void> addBatch(HttpServletRequest request,
+                                 @Valid @RequestBody WatchlistBatchDTO dto) {
+        Long userId = UserContext.getUserId(request);
+        watchlistService.addBatch(userId, dto);
+        return Result.ok();
+    }
+
     @DeleteMapping("/{stockCode}")
     public Result<Void> removeFromWatchlist(HttpServletRequest request,
                                             @PathVariable String stockCode) {
         Long userId = UserContext.getUserId(request);
         watchlistService.removeFromWatchlist(userId, stockCode);
+        return Result.ok();
+    }
+
+    @DeleteMapping("/batch")
+    public Result<Void> removeBatch(HttpServletRequest request,
+                                    @Valid @RequestBody WatchlistBatchDTO dto) {
+        Long userId = UserContext.getUserId(request);
+        watchlistService.removeBatch(userId, dto);
+        return Result.ok();
+    }
+
+    @PutMapping("/sort")
+    public Result<Void> updateSort(HttpServletRequest request,
+                                   @Valid @RequestBody WatchlistSortDTO dto) {
+        Long userId = UserContext.getUserId(request);
+        watchlistService.updateSort(userId, dto);
         return Result.ok();
     }
 }

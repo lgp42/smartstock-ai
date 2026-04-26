@@ -147,8 +147,14 @@ public class MarketController {
     }
 
     private void validateIndicator(String indicator) {
-        if (!List.of("macd", "kdj", "rsi").contains(indicator == null ? null : indicator.toLowerCase())) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "indicators 仅支持 macd/kdj/rsi");
+        String rawIndicator = indicator == null ? "macd" : indicator.toLowerCase();
+        List<String> indicators = java.util.Arrays.stream(rawIndicator.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        if (indicators.isEmpty() || !List.of("macd", "kdj", "rsi", "ma", "boll").containsAll(indicators)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "indicators 仅支持 macd/kdj/rsi/ma/boll");
         }
     }
 

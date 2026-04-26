@@ -69,6 +69,13 @@
           </h3>
           <div class="flex gap-2">
             <button
+              v-if="selectedCodes.length > 0"
+              class="text-xs font-semibold text-red-300 hover:text-red-200 px-3 py-1.5 rounded-lg border border-red-400/30 hover:border-red-400/60 transition"
+              @click="removeSelected"
+            >
+              批量移除 {{ selectedCodes.length }}
+            </button>
+            <button
               class="text-xs font-semibold text-slate-500 hover:text-slate-300 px-3 py-1.5 rounded-lg border border-darkBorder hover:border-slate-600 transition"
               @click="toggleSort"
             >
@@ -88,6 +95,14 @@
           <table class="w-full text-left border-collapse whitespace-nowrap">
             <thead class="sticky top-0 bg-darkBg/95 backdrop-blur z-10 text-[10px] font-semibold text-slate-600 uppercase tracking-[0.15em] font-mono">
               <tr>
+                <th class="p-3 w-10">
+                  <input
+                    type="checkbox"
+                    class="h-3.5 w-3.5 rounded border-darkBorder bg-darkBg accent-cyan-400"
+                    :checked="allVisibleSelected"
+                    @change="toggleSelectAll"
+                  />
+                </th>
                 <th class="p-3">代码</th>
                 <th class="p-3 hidden md:table-cell">股票名称</th>
                 <th class="p-3 text-right">最新价</th>
@@ -102,6 +117,14 @@
                 @click="goToTerminal(item.stockCode)"
                 class="border-b border-darkBorder/30 hover:bg-primary/[0.03] transition-colors cursor-pointer group/row"
               >
+                <td class="p-3" @click.stop>
+                  <input
+                    v-model="selectedCodes"
+                    :value="item.stockCode"
+                    type="checkbox"
+                    class="h-3.5 w-3.5 rounded border-darkBorder bg-darkBg accent-cyan-400"
+                  />
+                </td>
                 <td class="p-3">
                   <div class="flex items-center gap-2.5">
                     <div class="hidden sm:flex w-8 h-8 rounded-xl border border-darkBorder/60 bg-darkBg/80 items-center justify-center text-[10px] font-mono font-bold text-slate-500 shrink-0">
@@ -125,13 +148,25 @@
                   </span>
                 </td>
                 <td class="p-3 text-center">
-                  <button @click.stop="removeFromWatchlist(item.stockCode)" class="w-7 h-7 rounded-lg border border-darkBorder text-slate-600 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/8 flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-all text-sm mx-auto">
-                    ×
-                  </button>
+                  <div class="flex justify-center gap-1">
+                    <button
+                      v-if="sortMode === 'default'"
+                      @click.stop="moveWatchlist(item.stockCode, -1)"
+                      class="w-7 h-7 rounded-lg border border-darkBorder text-slate-600 hover:text-primary hover:border-primary/30 hover:bg-primary/8 flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-all text-xs"
+                    >↑</button>
+                    <button
+                      v-if="sortMode === 'default'"
+                      @click.stop="moveWatchlist(item.stockCode, 1)"
+                      class="w-7 h-7 rounded-lg border border-darkBorder text-slate-600 hover:text-primary hover:border-primary/30 hover:bg-primary/8 flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-all text-xs"
+                    >↓</button>
+                    <button @click.stop="removeFromWatchlist(item.stockCode)" class="w-7 h-7 rounded-lg border border-darkBorder text-slate-600 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/8 flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-all text-sm">
+                      ×
+                    </button>
+                  </div>
                 </td>
               </tr>
               <tr v-if="watchlist.length === 0">
-                <td colspan="5" class="py-16 text-center">
+                <td colspan="6" class="py-16 text-center">
                   <div class="flex flex-col items-center gap-3">
                     <div class="w-12 h-12 rounded-2xl border border-darkBorder/60 bg-darkBg/60 flex items-center justify-center">
                       <svg class="w-5 h-5 text-slate-600" viewBox="0 0 20 20" fill="none">
@@ -211,6 +246,7 @@ const marketSnapshots = ref<MarketSnapshotVO[]>([])
 const lastSyncTime = ref('')
 const marketNews = ref<Array<{ publishTime: string; source: string; title: string; url: string }>>([])
 const sortMode = ref<'default' | 'changeDesc' | 'changeAsc'>('default')
+const selectedCodes = ref<string[]>([])
 let pollTimer: number | undefined
 
 const sortLabel = computed(() => {
@@ -243,6 +279,11 @@ const displayWatchlist = computed(() => {
   return list
 })
 
+const allVisibleSelected = computed(() => (
+  displayWatchlist.value.length > 0
+  && displayWatchlist.value.every(item => selectedCodes.value.includes(item.stockCode))
+))
+
 const formatIndexValue = (val: number) => {
   return Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
@@ -267,6 +308,9 @@ const loadData = async () => {
     ])
     marketSnapshots.value = Array.isArray(snapshots) ? snapshots : []
     watchlist.value = wl as any[]
+    selectedCodes.value = selectedCodes.value.filter(code =>
+      watchlist.value.some(item => item.stockCode === code)
+    )
     lastSyncTime.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
     if (Array.isArray(news) && news.length > 0) {
       marketNews.value = news.map(item => ({
@@ -297,9 +341,59 @@ const removeFromWatchlist = async (code: string) => {
   try {
     await request.delete(`/watchlist/${code}`)
     watchlist.value = watchlist.value.filter(item => item.stockCode !== code)
+    selectedCodes.value = selectedCodes.value.filter(item => item !== code)
     toast.success('已从自选股移除')
   } catch (err) {
     console.error(err)
+  }
+}
+
+const removeSelected = async () => {
+  if (selectedCodes.value.length === 0) return
+  try {
+    await request.delete('/watchlist/batch', {
+      data: { stockCodes: selectedCodes.value }
+    })
+    watchlist.value = watchlist.value.filter(item => !selectedCodes.value.includes(item.stockCode))
+    selectedCodes.value = []
+    toast.success('已批量移除自选股')
+  } catch (error: any) {
+    toast.error(error.message || '批量移除失败')
+  }
+}
+
+const toggleSelectAll = () => {
+  if (allVisibleSelected.value) {
+    selectedCodes.value = selectedCodes.value.filter(code =>
+      !displayWatchlist.value.some(item => item.stockCode === code)
+    )
+    return
+  }
+  selectedCodes.value = Array.from(new Set([
+    ...selectedCodes.value,
+    ...displayWatchlist.value.map(item => item.stockCode)
+  ]))
+}
+
+const moveWatchlist = async (stockCode: string, delta: number) => {
+  const index = watchlist.value.findIndex(item => item.stockCode === stockCode)
+  const nextIndex = index + delta
+  if (index < 0 || nextIndex < 0 || nextIndex >= watchlist.value.length) return
+  const nextList = [...watchlist.value]
+  const [item] = nextList.splice(index, 1)
+  nextList.splice(nextIndex, 0, item)
+  watchlist.value = nextList.map((row, rowIndex) => ({ ...row, sortOrder: rowIndex }))
+  try {
+    await request.put('/watchlist/sort', {
+      items: watchlist.value.map((row, rowIndex) => ({
+        stockCode: row.stockCode,
+        sortOrder: rowIndex
+      }))
+    })
+    toast.success('自选股排序已保存')
+  } catch (error: any) {
+    toast.error(error.message || '排序保存失败')
+    await loadData()
   }
 }
 

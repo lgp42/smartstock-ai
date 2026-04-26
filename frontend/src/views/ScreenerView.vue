@@ -14,6 +14,13 @@
         <button @click="resetFilters" class="text-xs font-semibold text-slate-500 hover:text-slate-300 px-3 py-1.5 rounded-lg border border-darkBorder hover:border-slate-600 transition">
           重置条件
         </button>
+        <button
+          v-if="results.length > 0"
+          @click="addAllToWatchlist"
+          class="text-xs font-semibold text-accent hover:text-accent px-3 py-1.5 rounded-lg border border-accent/30 hover:border-accent/60 transition"
+        >
+          全部自选
+        </button>
         <button @click="runScreen" class="text-xs font-bold text-primary px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition">
           运行策略
         </button>
@@ -238,6 +245,18 @@ const addToWatchlist = async (stockCode: string) => {
     toast.success(`已添加 ${stockCode} 到自选股`)
   } catch (error: any) {
     toast.error(error.message || '添加自选股失败')
+  }
+}
+
+const addAllToWatchlist = async () => {
+  if (results.value.length === 0) return
+  try {
+    await request.post('/watchlist/batch', {
+      stockCodes: results.value.map(item => item.stockCode)
+    })
+    toast.success('筛选结果已批量加入自选股')
+  } catch (error: any) {
+    toast.error(error.message || '批量加入自选股失败')
   }
 }
 

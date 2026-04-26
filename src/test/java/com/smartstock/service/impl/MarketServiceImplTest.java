@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -77,6 +78,46 @@ class MarketServiceImplTest {
         assertInstanceOf(BigDecimal.class, rsiLast.getData().get("rsi12"));
         assertInstanceOf(BigDecimal.class, rsiLast.getData().get("rsi24"));
         assertEquals(2, ((BigDecimal) rsiLast.getData().get("rsi6")).scale());
+    }
+
+    @Test
+    void getIndicatorsShouldReturnMovingAverageValues() {
+        mockStock("000001", "SZ");
+        when(eastMoneyClient.getKlineData("000001", "0", "day", 30)).thenReturn(buildKlines(30));
+
+        List<IndicatorVO> ma = assertDoesNotThrow(() -> marketService.getIndicators("000001", "ma", "day", 30));
+
+        IndicatorVO last = ma.get(ma.size() - 1);
+        assertEquals("ma", last.getType());
+        assertEquals(new BigDecimal("37.50"), last.getData().get("ma5"));
+        assertEquals(new BigDecimal("35.00"), last.getData().get("ma10"));
+        assertEquals(new BigDecimal("30.00"), last.getData().get("ma20"));
+    }
+
+    @Test
+    void getIndicatorsShouldReturnBollValues() {
+        mockStock("000001", "SZ");
+        when(eastMoneyClient.getKlineData("000001", "0", "day", 30)).thenReturn(buildKlines(30));
+
+        List<IndicatorVO> boll = assertDoesNotThrow(() -> marketService.getIndicators("000001", "boll", "day", 30));
+
+        IndicatorVO last = boll.get(boll.size() - 1);
+        assertEquals("boll", last.getType());
+        assertEquals(new BigDecimal("30.00"), last.getData().get("mid"));
+        assertInstanceOf(BigDecimal.class, last.getData().get("upper"));
+        assertInstanceOf(BigDecimal.class, last.getData().get("lower"));
+    }
+
+    @Test
+    void getIndicatorsShouldSupportMultipleIndicatorTypes() {
+        mockStock("000001", "SZ");
+        when(eastMoneyClient.getKlineData("000001", "0", "day", 30)).thenReturn(buildKlines(30));
+
+        List<IndicatorVO> indicators = marketService.getIndicators("000001", "ma,boll", "day", 30);
+
+        assertEquals(60, indicators.size());
+        assertEquals("ma", indicators.get(0).getType());
+        assertEquals("boll", indicators.get(30).getType());
     }
 
     @Test
@@ -171,7 +212,6 @@ class MarketServiceImplTest {
 
     @Test
     void screenStocksShouldFallbackToSearchPoolWhenPrimarySourceReturnsEmpty() {
-        when(eastMoneyClient.getScreenerCandidates(List.of("sh_main", "sz_main"), 12)).thenReturn(List.of());
         when(eastMoneyClient.searchStocks(anyString())).thenReturn(List.of(
                 stockMap("600036", "招商银行", "SH", null),
                 stockMap("000858", "五粮液", "SZ", null),

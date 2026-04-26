@@ -1,7 +1,7 @@
 # 智能股票交易辅助系统 - API 接口文档
 
 **版本**: v0.0.1-SNAPSHOT  
-**最后更新**: 2026-03-30  
+**最后更新**: 2026-04-26  
 **文档状态**: 已按当前代码实现对齐
 
 ---
@@ -104,6 +104,38 @@ Authorization: Bearer <token>
 
 - 邮箱会按小写规范化查询
 
+### POST /auth/register/phone
+
+手机号注册。
+
+请求体：
+
+```json
+{
+  "phone": "13800138000",
+  "password": "password123",
+  "nickname": "用户昵称"
+}
+```
+
+说明：
+
+- 当前为手机号 + 密码注册，不包含短信验证码
+- 系统会为手机号用户生成内部邮箱占位值，用于兼容现有用户表非空约束
+
+### POST /auth/login/phone
+
+手机号登录。
+
+请求体：
+
+```json
+{
+  "phone": "13800138000",
+  "password": "password123"
+}
+```
+
 ### POST /auth/logout
 
 用户登出，当前 Token 会进入黑名单。
@@ -132,6 +164,24 @@ Authorization: Bearer <token>
 说明：
 
 - 当前只支持修改 `nickname` 和 `avatar`
+
+### PUT /users/me/password
+
+修改当前登录用户密码。
+
+请求体：
+
+```json
+{
+  "oldPassword": "old-password",
+  "newPassword": "new-password"
+}
+```
+
+说明：
+
+- 需要先校验旧密码
+- 新密码长度 8-20 位
 
 ---
 
@@ -203,14 +253,24 @@ GET /api/market/stocks/search?keyword=平安&limit=3
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `indicators` | String | 否 | 默认 `macd`，仅支持单个值：`macd` / `kdj` / `rsi` |
+| `indicators` | String | 否 | 默认 `macd`，支持 `macd` / `kdj` / `rsi` / `ma` / `boll`，也支持逗号组合 |
 | `period` | String | 否 | 默认 `day`，支持 `1min/5min/15min/30min/60min/day/week/month` |
 | `limit` | Integer | 否 | 默认 100，范围 1-500 |
 
 说明：
 
-- 当前不支持多个指标逗号拼接
-- 当前不支持 `boll`
+- 多指标组合会按指标类型顺序拼接返回，单条数据中 `type` 字段区分指标类型
+
+### GET /market/snapshots
+
+获取市场指数快照。
+
+返回字段包含：
+
+- `stockCode`
+- `stockName`
+- `currentPrice`
+- `changeRate`
 
 ### GET /market/screener
 
@@ -279,6 +339,45 @@ GET /api/market/stocks/search?keyword=平安&limit=3
 ### DELETE /watchlist/{stockCode}
 
 删除自选股。
+
+### POST /watchlist/batch
+
+批量添加自选股。
+
+请求体：
+
+```json
+{
+  "stockCodes": ["000001", "600519"]
+}
+```
+
+### DELETE /watchlist/batch
+
+批量删除自选股。
+
+请求体：
+
+```json
+{
+  "stockCodes": ["000001", "600519"]
+}
+```
+
+### PUT /watchlist/sort
+
+更新自选股排序。
+
+请求体：
+
+```json
+{
+  "items": [
+    { "stockCode": "600519", "sortOrder": 0 },
+    { "stockCode": "000001", "sortOrder": 1 }
+  ]
+}
+```
 
 ---
 
@@ -456,20 +555,182 @@ GET /api/market/stocks/search?keyword=平安&limit=3
 
 ---
 
+## 2.8 模拟交易接口
+
+### GET /trade/account
+
+查询当前用户模拟账户。
+
+### POST /trade/buy
+
+模拟买入。
+
+请求体：
+
+```json
+{
+  "stockCode": "600519",
+  "price": 1688.00,
+  "quantity": 100
+}
+```
+
+规则：
+
+- 买入数量必须是 100 的整数倍
+- 买入价格最多保留 2 位小数
+- 买入价大于等于当前价时立即成交
+- 买入价低于当前价时进入 `pending`，冻结订单金额和手续费
+
+### POST /trade/sell
+
+模拟卖出。
+
+请求体：
+
+```json
+{
+  "stockCode": "600519",
+  "price": 1688.00,
+  "quantity": 100
+}
+```
+
+规则：
+
+- 卖出数量必须是 100 的整数倍
+- 卖出价格最多保留 2 位小数
+- 卖出价小于等于当前价时立即成交
+- 卖出价高于当前价时进入 `pending`，冻结对应可用持仓
+
+### GET /trade/orders
+
+查询订单列表。
+
+参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `stockCode` | String | 否 | 股票代码筛选 |
+| `orderType` | String | 否 | `buy` / `sell` |
+| `status` | String | 否 | `pending` / `filled` / `cancelled` |
+| `page` | Integer | 否 | 默认 1 |
+| `pageSize` | Integer | 否 | 默认 20，范围 1-100 |
+
+### DELETE /trade/orders/{orderId}
+
+撤销订单。
+
+说明：
+
+- 只允许撤销 `pending` 订单
+- 撤销待成交买单会释放冻结资金
+- 撤销待成交卖单会释放冻结持仓
+- 已成交订单不能撤销
+
+### GET /trade/positions
+
+查询当前持仓。
+
+### GET /trade/records
+
+查询交易记录。
+
+参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `stockCode` | String | 否 | 股票代码筛选 |
+| `tradeType` | String | 否 | `buy` / `sell` |
+| `startDate` | String | 否 | `yyyy-MM-dd` 或 `yyyy-MM-dd HH:mm:ss` |
+| `endDate` | String | 否 | `yyyy-MM-dd` 或 `yyyy-MM-dd HH:mm:ss` |
+| `page` | Integer | 否 | 默认 1 |
+| `pageSize` | Integer | 否 | 默认 20，范围 1-100 |
+
+---
+
+## 2.9 风险预警接口
+
+### GET /risk/alerts
+
+查询当前账户轻量风险预警。
+
+返回字段包含：
+
+- `alertType`
+- `alertLevel`
+- `stockCode`
+- `message`
+- `value`
+
+说明：
+
+- 当前根据账户现金、总资产、持仓盈亏等实时计算
+- 不是后台主动推送告警系统
+
+---
+
+## 2.10 回测接口
+
+### POST /backtest/run
+
+运行轻量买入持有回测。
+
+请求体：
+
+```json
+{
+  "stockCode": "600519",
+  "initialCapital": 1000000,
+  "limit": 120
+}
+```
+
+返回字段包含：
+
+- `stockCode`
+- `strategyType`
+- `initialCapital`
+- `finalCapital`
+- `totalReturn`
+- `returnRate`
+- `maxDrawdown`
+- `tradeCount`
+
+说明：
+
+- 当前策略为买入持有
+- 使用 K 线第一根收盘价买入，最后一根收盘价卖出
+- 根据期间净值计算最大回撤
+- 不落库到 `backtest_results`
+
+---
+
+## 2.11 WebSocket 行情
+
+### /ws/market
+
+客户端连接后发送股票代码，例如：
+
+```text
+600519
+```
+
+服务端会立即返回一次股票详情 JSON，并每 5 秒推送一次最新快照。客户端重新发送股票代码会切换订阅标的。
+
+---
+
 ## 3. 当前未实现接口
 
 以下接口或能力未实现，不应对外宣称可用：
 
-- 修改密码
-- 手机号注册/登录
-- 分时图
-- 秒级历史 K 线
-- `boll`
-- 多指标一次性组合查询
-- WebSocket 行情推送
-- 回测接口
-- 主动风险预警推送接口
-- 撤单接口
+- 短信验证码
+- 自选股分组管理
+- 盘口五档明细
+- 资金流向明细
+- 真实交易所对接
+- 完整量化平台级回测引擎
+- 后台主动推送式风险告警系统
 
 ---
 
@@ -477,13 +738,14 @@ GET /api/market/stocks/search?keyword=平安&limit=3
 
 为了避免误解，特别说明：
 
-- 当前 `indicators` 只支持单个值，不支持 `macd,kdj`
 - 当前 `kline` 没有 `startDate`、`endDate`
-- 当前没有秒级历史 K 线
-- 当前没有 `boll`
+- 当前 `kline` 支持 `1s` 实时秒级聚合窗口，但没有落库型秒级历史 K 线
+- 当前 `indicators` 支持 `macd/kdj/rsi/ma/boll` 和逗号组合
+- 当前 WebSocket 为行情快照订阅推送，不是复杂订阅中心
 - 当前已有 AI 分析、历史、情绪摘要、风险摘要接口
 - 当前已有 AI 问答和问答历史接口
-- 当前没有回测、主动预警推送接口
+- 当前模拟交易支持订单列表、轻量限价挂单和待成交撤单
+- 当前已有轻量回测和轻量风险预警接口
 
 ---
 
@@ -497,6 +759,7 @@ GET /api/market/stocks/search?keyword=平安&limit=3
 4. 调 AI 分析接口
 5. 调 AI 问答接口
 6. 调自选股接口
+7. 调风险预警和回测接口
 
 如果是受保护接口，请确认请求头已带：
 

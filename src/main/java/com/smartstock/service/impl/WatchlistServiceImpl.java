@@ -7,6 +7,8 @@ import com.smartstock.common.BusinessException;
 import com.smartstock.common.ErrorCode;
 import com.smartstock.convert.WatchlistStructMapper;
 import com.smartstock.dto.WatchlistAddDTO;
+import com.smartstock.dto.WatchlistBatchDTO;
+import com.smartstock.dto.WatchlistSortDTO;
 import com.smartstock.entity.StockInfo;
 import com.smartstock.entity.UserWatchlist;
 import com.smartstock.mapper.StockInfoMapper;
@@ -16,6 +18,7 @@ import com.smartstock.vo.WatchlistVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -70,6 +73,7 @@ public class WatchlistServiceImpl implements WatchlistService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void addToWatchlist(Long userId, WatchlistAddDTO dto) {
         String stockCode = dto.getStockCode();
 
@@ -106,12 +110,51 @@ public class WatchlistServiceImpl implements WatchlistService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void addBatch(Long userId, WatchlistBatchDTO dto) {
+        for (String stockCode : dto.getStockCodes()) {
+            WatchlistAddDTO addDTO = new WatchlistAddDTO();
+            addDTO.setStockCode(stockCode);
+            try {
+                addToWatchlist(userId, addDTO);
+            } catch (BusinessException e) {
+                if (e.getCode() != ErrorCode.WATCHLIST_ALREADY_EXISTS) {
+                    throw e;
+                }
+            }
+        }
+    }
+
+    @Override
     public void removeFromWatchlist(Long userId, String stockCode) {
         watchlistMapper.delete(
                 new LambdaQueryWrapper<UserWatchlist>()
                         .eq(UserWatchlist::getUserId, userId)
                         .eq(UserWatchlist::getStockCode, stockCode));
         log.info("Removed stock from watchlist: userId={}, stockCode={}", userId, stockCode);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void removeBatch(Long userId, WatchlistBatchDTO dto) {
+        for (String stockCode : dto.getStockCodes()) {
+            removeFromWatchlist(userId, stockCode);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateSort(Long userId, WatchlistSortDTO dto) {
+        for (WatchlistSortDTO.Item item : dto.getItems()) {
+            UserWatchlist watchlist = watchlistMapper.selectOne(
+                    new LambdaQueryWrapper<UserWatchlist>()
+                            .eq(UserWatchlist::getUserId, userId)
+                            .eq(UserWatchlist::getStockCode, item.getStockCode()));
+            if (watchlist != null) {
+                watchlist.setSortOrder(item.getSortOrder());
+                watchlistMapper.updateById(watchlist);
+            }
+        }
     }
 
     private StockInfo findStockInfo(String stockCode) {

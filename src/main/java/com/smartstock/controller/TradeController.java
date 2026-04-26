@@ -44,6 +44,27 @@ public class TradeController {
         return Result.ok(tradeService.sell(userId, dto));
     }
 
+    @DeleteMapping("/orders/{orderId}")
+    public Result<OrderVO> cancelOrder(HttpServletRequest request,
+                                       @PathVariable Long orderId) {
+        Long userId = UserContext.getUserId(request);
+        return Result.ok(tradeService.cancelOrder(userId, orderId));
+    }
+
+    @GetMapping("/orders")
+    public Result<PageVO<OrderVO>> getOrders(HttpServletRequest request,
+                                             @RequestParam(required = false) String stockCode,
+                                             @RequestParam(required = false) String orderType,
+                                             @RequestParam(required = false) String status,
+                                             @RequestParam(defaultValue = "1") int page,
+                                             @RequestParam(defaultValue = "20") int pageSize) {
+        validateOrderType(orderType);
+        validateOrderStatus(status);
+        validatePage(page, pageSize);
+        Long userId = UserContext.getUserId(request);
+        return Result.ok(tradeService.getOrders(userId, stockCode, orderType, status, page, pageSize));
+    }
+
     @GetMapping("/positions")
     public Result<List<PositionVO>> getPositions(HttpServletRequest request) {
         Long userId = UserContext.getUserId(request);
@@ -72,6 +93,26 @@ public class TradeController {
         }
         if (!"buy".equalsIgnoreCase(tradeType) && !"sell".equalsIgnoreCase(tradeType)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "tradeType 仅支持 buy 或 sell");
+        }
+    }
+
+    private void validateOrderType(String orderType) {
+        if (orderType == null) {
+            return;
+        }
+        if (!"buy".equalsIgnoreCase(orderType) && !"sell".equalsIgnoreCase(orderType)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "orderType 仅支持 buy 或 sell");
+        }
+    }
+
+    private void validateOrderStatus(String status) {
+        if (status == null) {
+            return;
+        }
+        if (!"pending".equalsIgnoreCase(status)
+                && !"filled".equalsIgnoreCase(status)
+                && !"cancelled".equalsIgnoreCase(status)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "status 仅支持 pending/filled/cancelled");
         }
     }
 

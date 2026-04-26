@@ -80,8 +80,9 @@ public class TradeServiceImpl implements TradeService {
 
         // 获取当前股价，检查价格范围
         StockRealtimeDTO realtimeDTO = eastMoneyClient.getRealtimeQuote(stockCode, marketCode);
+        BigDecimal currentPrice = null;
         if (realtimeDTO != null && realtimeDTO.getCurrentPrice() != null) {
-            BigDecimal currentPrice = realtimeDTO.getCurrentPrice();
+            currentPrice = realtimeDTO.getCurrentPrice();
             BigDecimal upperLimit = currentPrice.multiply(BigDecimal.ONE.add(PRICE_LIMIT_RATE))
                     .setScale(2, RoundingMode.HALF_UP);
             BigDecimal lowerLimit = currentPrice.multiply(BigDecimal.ONE.subtract(PRICE_LIMIT_RATE))
@@ -108,6 +109,29 @@ public class TradeServiceImpl implements TradeService {
         }
 
         LocalDateTime now = LocalDateTime.now();
+        if (currentPrice != null && price.compareTo(currentPrice) < 0) {
+            TradeOrder order = TradeOrder.builder()
+                    .userId(userId)
+                    .stockCode(stockCode)
+                    .orderType("buy")
+                    .price(price)
+                    .quantity(quantity)
+                    .amount(amount)
+                    .fee(fee)
+                    .status("pending")
+                    .filledQuantity(0)
+                    .build();
+            tradeOrderMapper.insert(order);
+
+            account.setAvailableCash(account.getAvailableCash().subtract(totalCost).setScale(2, RoundingMode.HALF_UP));
+            account.setFrozenCash(nonNullMoney(account.getFrozenCash()).add(totalCost).setScale(2, RoundingMode.HALF_UP));
+            refreshAccountSnapshot(account);
+            accountMapper.updateById(account);
+
+            log.info("Buy order pending: userId={}, stockCode={}, quantity={}, price={}, currentPrice={}",
+                    userId, stockCode, quantity, price, currentPrice);
+            return toOrderVO(order, stockInfo.getStockName());
+        }
 
         // 创建订单
         TradeOrder order = TradeOrder.builder()
@@ -221,8 +245,9 @@ public class TradeServiceImpl implements TradeService {
 
         // 获取当前股价，检查价格范围
         StockRealtimeDTO realtimeDTO = eastMoneyClient.getRealtimeQuote(stockCode, marketCode);
+        BigDecimal currentPrice = null;
         if (realtimeDTO != null && realtimeDTO.getCurrentPrice() != null) {
-            BigDecimal currentPrice = realtimeDTO.getCurrentPrice();
+            currentPrice = realtimeDTO.getCurrentPrice();
             BigDecimal upperLimit = currentPrice.multiply(BigDecimal.ONE.add(PRICE_LIMIT_RATE))
                     .setScale(2, RoundingMode.HALF_UP);
             BigDecimal lowerLimit = currentPrice.multiply(BigDecimal.ONE.subtract(PRICE_LIMIT_RATE))
@@ -244,6 +269,31 @@ public class TradeServiceImpl implements TradeService {
         BigDecimal netIncome = amount.subtract(fee).subtract(tax);
 
         LocalDateTime now = LocalDateTime.now();
+        if (currentPrice != null && price.compareTo(currentPrice) > 0) {
+            TradeOrder order = TradeOrder.builder()
+                    .userId(userId)
+                    .stockCode(stockCode)
+                    .orderType("sell")
+                    .price(price)
+                    .quantity(quantity)
+                    .amount(amount)
+                    .fee(fee.add(tax))
+                    .status("pending")
+                    .filledQuantity(0)
+                    .build();
+            tradeOrderMapper.insert(order);
+
+            position.setAvailableQuantity(position.getAvailableQuantity() - quantity);
+            positionMapper.updateById(position);
+
+            Account account = getAccountByUserId(userId);
+            refreshAccountSnapshot(account);
+            accountMapper.updateById(account);
+
+            log.info("Sell order pending: userId={}, stockCode={}, quantity={}, price={}, currentPrice={}",
+                    userId, stockCode, quantity, price, currentPrice);
+            return toOrderVO(order, stockInfo.getStockName());
+        }
 
         // 创建订单
         TradeOrder order = TradeOrder.builder()
@@ -305,6 +355,77 @@ public class TradeServiceImpl implements TradeService {
                 userId, stockCode, quantity, price, netIncome);
 
         return toOrderVO(order, stockInfo.getStockName());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public OrderVO cancelOrder(Long userId, Long orderId) {
+        TradeOrder order = tradeOrderMapper.selectOne(
+                new LambdaQueryWrapper<TradeOrder>()
+                        .eq(TradeOrder::getId, orderId)
+                        .eq(TradeOrder::getUserId, userId));
+        if (order == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "订单不存在");
+        }
+        if (!"pending".equalsIgnoreCase(order.getStatus())) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "只有待成交订单可以撤销");
+        }
+
+        if ("buy".equalsIgnoreCase(order.getOrderType())) {
+            Account account = getAccountByUserId(userId);
+            BigDecimal releaseAmount = order.getAmount().add(nonNullMoney(order.getFee()));
+            account.setAvailableCash(account.getAvailableCash().add(releaseAmount).setScale(2, RoundingMode.HALF_UP));
+            BigDecimal frozenCash = nonNullMoney(account.getFrozenCash()).subtract(releaseAmount);
+            if (frozenCash.compareTo(BigDecimal.ZERO) < 0) {
+                frozenCash = BigDecimal.ZERO;
+            }
+            account.setFrozenCash(frozenCash.setScale(2, RoundingMode.HALF_UP));
+            refreshAccountSnapshot(account);
+            accountMapper.updateById(account);
+        } else if ("sell".equalsIgnoreCase(order.getOrderType())) {
+            Position position = positionMapper.selectOne(
+                    new LambdaQueryWrapper<Position>()
+                            .eq(Position::getUserId, userId)
+                            .eq(Position::getStockCode, order.getStockCode()));
+            if (position != null) {
+                int availableQuantity = position.getAvailableQuantity() + order.getQuantity();
+                position.setAvailableQuantity(Math.min(availableQuantity, position.getQuantity()));
+                positionMapper.updateById(position);
+            }
+            Account account = getAccountByUserId(userId);
+            refreshAccountSnapshot(account);
+            accountMapper.updateById(account);
+        }
+        order.setStatus("cancelled");
+        tradeOrderMapper.updateById(order);
+        StockInfo stockInfo = findStockInfo(order.getStockCode());
+        return toOrderVO(order, stockInfo != null ? stockInfo.getStockName() : order.getStockCode());
+    }
+
+    @Override
+    public PageVO<OrderVO> getOrders(Long userId, String stockCode, String orderType, String status,
+                                     int page, int pageSize) {
+        LambdaQueryWrapper<TradeOrder> wrapper = new LambdaQueryWrapper<TradeOrder>()
+                .eq(TradeOrder::getUserId, userId);
+        if (StringUtils.hasText(stockCode)) {
+            wrapper.eq(TradeOrder::getStockCode, stockCode);
+        }
+        if (StringUtils.hasText(orderType)) {
+            wrapper.eq(TradeOrder::getOrderType, orderType.toLowerCase());
+        }
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(TradeOrder::getStatus, status.toLowerCase());
+        }
+        wrapper.orderByDesc(TradeOrder::getCreatedAt)
+                .orderByDesc(TradeOrder::getId);
+
+        Page<TradeOrder> pageResult = tradeOrderMapper.selectPage(new Page<>(page, pageSize), wrapper);
+        List<OrderVO> records = new ArrayList<>();
+        for (TradeOrder order : pageResult.getRecords()) {
+            StockInfo stockInfo = findStockInfo(order.getStockCode());
+            records.add(toOrderVO(order, stockInfo != null ? stockInfo.getStockName() : order.getStockCode()));
+        }
+        return new PageVO<>(pageResult.getTotal(), page, pageSize, records);
     }
 
     @Override
@@ -628,6 +749,10 @@ public class TradeServiceImpl implements TradeService {
         account.setTotalAssets(totalAssets);
         account.setTotalProfit(totalProfit);
         account.setProfitRate(toRatePercent(totalProfit, INITIAL_ASSETS));
+    }
+
+    private BigDecimal nonNullMoney(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP) : value;
     }
 
     private BigDecimal toRatePercent(BigDecimal numerator, BigDecimal denominator) {

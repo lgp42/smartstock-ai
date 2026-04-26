@@ -120,6 +120,13 @@
                 <div class="text-[11px] text-slate-500 font-mono truncate">{{ authStore.user?.email || '' }}</div>
               </div>
               <button
+                @click="goToSettings"
+                class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors"
+              >
+                <Settings class="w-3.5 h-3.5" />
+                账户设置
+              </button>
+              <button
                 @click="handleLogout"
                 class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-400 hover:text-red-400 hover:bg-red-500/5 transition-colors"
               >
@@ -189,6 +196,13 @@
             </div>
           </div>
           <button
+            @click="goToSettings"
+            class="mb-2 w-full flex items-center justify-center gap-2 rounded-lg border border-darkBorder py-2 text-xs text-slate-400 hover:text-primary hover:border-primary/30 transition-colors"
+          >
+            <Settings class="w-3.5 h-3.5" />
+            账户设置
+          </button>
+          <button
             @click="handleLogout"
             class="w-full flex items-center justify-center gap-2 rounded-lg border border-darkBorder py-2 text-xs text-slate-400 hover:text-red-400 hover:border-red-500/30 transition-colors"
           >
@@ -209,7 +223,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, LogOut, Menu, X, User, ChevronDown, LayoutDashboard, ScanSearch, Bot, Monitor, Newspaper } from 'lucide-vue-next'
+import { Search, LogOut, Menu, X, User, ChevronDown, LayoutDashboard, ScanSearch, Bot, Monitor, Newspaper, ShieldAlert, FlaskConical, Wallet, Settings } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import request from '../utils/request'
@@ -220,6 +234,9 @@ const navLinks = [
   { to: '/copilot', label: 'AI 问答', icon: Bot },
   { to: '/terminal', label: '行情终端', icon: Monitor },
   { to: '/news', label: '市场快讯', icon: Newspaper },
+  { to: '/trade', label: '模拟交易', icon: Wallet },
+  { to: '/risk', label: '风险预警', icon: ShieldAlert },
+  { to: '/backtest', label: '策略回测', icon: FlaskConical },
 ]
 
 const router = useRouter()
@@ -299,6 +316,12 @@ const handleLogout = async () => {
   mobileMenuOpen.value = false
   userMenuOpen.value = false
   router.push('/login')
+}
+
+const goToSettings = () => {
+  userMenuOpen.value = false
+  mobileMenuOpen.value = false
+  router.push('/settings')
 }
 
 const handleClickOutside = () => {

@@ -39,6 +39,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -246,6 +248,202 @@ class TradeServiceImplTest {
         assertMoneyEquals("999980.00", accountCaptor.getValue().getTotalAssets());
         assertMoneyEquals("-20.00", accountCaptor.getValue().getTotalProfit());
         assertMoneyEquals("-0.0020", accountCaptor.getValue().getProfitRate());
+    }
+
+    @Test
+    void buyBelowCurrentPriceShouldCreatePendingOrderAndFreezeCash() {
+        Long userId = 3L;
+        BuyOrderDTO dto = new BuyOrderDTO();
+        dto.setStockCode("600519");
+        dto.setPrice(new BigDecimal("95.00"));
+        dto.setQuantity(100);
+
+        Account account = baseAccount(userId, "1000000.00");
+        StockInfo stockInfo = StockInfo.builder().stockCode("600519").stockName("贵州茅台").market("SH").build();
+        StockRealtimeDTO realtimeDTO = new StockRealtimeDTO();
+        realtimeDTO.setCurrentPrice(new BigDecimal("100.00"));
+
+        when(accountMapper.selectOne(any())).thenReturn(account);
+        when(stockInfoMapper.selectList(any())).thenReturn(List.of(stockInfo));
+        when(eastMoneyClient.getRealtimeQuote("600519", "1")).thenReturn(realtimeDTO);
+        when(positionMapper.selectList(any())).thenReturn(List.of());
+        doAnswer(invocation -> {
+            TradeOrder order = invocation.getArgument(0);
+            order.setId(103L);
+            return 1;
+        }).when(tradeOrderMapper).insert(any(TradeOrder.class));
+
+        ArgumentCaptor<Account> accountCaptor = ArgumentCaptor.forClass(Account.class);
+        when(accountMapper.updateById(accountCaptor.capture())).thenReturn(1);
+
+        OrderVO orderVO = tradeService.buy(userId, dto);
+
+        assertEquals("pending", orderVO.getStatus());
+        assertMoneyEquals("990495.00", accountCaptor.getValue().getAvailableCash());
+        assertMoneyEquals("9505.00", accountCaptor.getValue().getFrozenCash());
+        assertMoneyEquals("1000000.00", accountCaptor.getValue().getTotalAssets());
+        verify(positionMapper, never()).insert(any(Position.class));
+        verify(tradeRecordMapper, never()).insert(any(com.smartstock.entity.TradeRecord.class));
+    }
+
+    @Test
+    void sellAboveCurrentPriceShouldCreatePendingOrderAndFreezePosition() {
+        Long userId = 4L;
+        SellOrderDTO dto = new SellOrderDTO();
+        dto.setStockCode("600519");
+        dto.setPrice(new BigDecimal("105.00"));
+        dto.setQuantity(100);
+
+        Account account = baseAccount(userId, "990000.00");
+        StockInfo stockInfo = StockInfo.builder().stockCode("600519").stockName("贵州茅台").market("SH").build();
+        StockRealtimeDTO realtimeDTO = new StockRealtimeDTO();
+        realtimeDTO.setCurrentPrice(new BigDecimal("100.00"));
+        Position position = Position.builder()
+                .id(401L)
+                .userId(userId)
+                .stockCode("600519")
+                .quantity(200)
+                .availableQuantity(200)
+                .costPrice(new BigDecimal("90.00"))
+                .currentPrice(new BigDecimal("100.00"))
+                .marketValue(new BigDecimal("20000.00"))
+                .profit(new BigDecimal("2000.00"))
+                .profitRate(new BigDecimal("11.1111"))
+                .build();
+
+        when(positionMapper.selectOne(any())).thenReturn(position);
+        when(accountMapper.selectOne(any())).thenReturn(account);
+        when(stockInfoMapper.selectList(any())).thenReturn(List.of(stockInfo));
+        when(eastMoneyClient.getRealtimeQuote("600519", "1")).thenReturn(realtimeDTO);
+        when(positionMapper.selectList(any())).thenReturn(List.of(position));
+        doAnswer(invocation -> {
+            TradeOrder order = invocation.getArgument(0);
+            order.setId(104L);
+            return 1;
+        }).when(tradeOrderMapper).insert(any(TradeOrder.class));
+
+        ArgumentCaptor<Position> positionCaptor = ArgumentCaptor.forClass(Position.class);
+        when(positionMapper.updateById(positionCaptor.capture())).thenReturn(1);
+        when(accountMapper.updateById(any(Account.class))).thenReturn(1);
+
+        OrderVO orderVO = tradeService.sell(userId, dto);
+
+        assertEquals("pending", orderVO.getStatus());
+        assertEquals(100, positionCaptor.getValue().getAvailableQuantity());
+        verify(tradeRecordMapper, never()).insert(any(com.smartstock.entity.TradeRecord.class));
+    }
+
+    @Test
+    void cancelPendingBuyOrderShouldReleaseFrozenCash() {
+        Long userId = 5L;
+        TradeOrder order = TradeOrder.builder()
+                .id(105L)
+                .userId(userId)
+                .stockCode("600519")
+                .orderType("buy")
+                .price(new BigDecimal("95.00"))
+                .quantity(100)
+                .amount(new BigDecimal("9500.00"))
+                .fee(new BigDecimal("5.00"))
+                .status("pending")
+                .build();
+        Account account = baseAccount(userId, "990495.00");
+        account.setFrozenCash(new BigDecimal("9505.00"));
+
+        when(tradeOrderMapper.selectOne(any())).thenReturn(order);
+        when(accountMapper.selectOne(any())).thenReturn(account);
+        when(positionMapper.selectList(any())).thenReturn(List.of());
+        when(stockInfoMapper.selectList(any())).thenReturn(List.of(
+                StockInfo.builder().stockCode("600519").stockName("贵州茅台").market("SH").build()
+        ));
+
+        ArgumentCaptor<Account> accountCaptor = ArgumentCaptor.forClass(Account.class);
+        when(accountMapper.updateById(accountCaptor.capture())).thenReturn(1);
+        ArgumentCaptor<TradeOrder> orderCaptor = ArgumentCaptor.forClass(TradeOrder.class);
+        when(tradeOrderMapper.updateById(orderCaptor.capture())).thenReturn(1);
+
+        OrderVO orderVO = tradeService.cancelOrder(userId, 105L);
+
+        assertEquals("cancelled", orderVO.getStatus());
+        assertMoneyEquals("1000000.00", accountCaptor.getValue().getAvailableCash());
+        assertMoneyEquals("0.00", accountCaptor.getValue().getFrozenCash());
+        assertEquals("cancelled", orderCaptor.getValue().getStatus());
+    }
+
+    @Test
+    void cancelPendingSellOrderShouldReleaseFrozenPosition() {
+        Long userId = 6L;
+        TradeOrder order = TradeOrder.builder()
+                .id(106L)
+                .userId(userId)
+                .stockCode("600519")
+                .orderType("sell")
+                .price(new BigDecimal("105.00"))
+                .quantity(100)
+                .amount(new BigDecimal("10500.00"))
+                .fee(new BigDecimal("15.50"))
+                .status("pending")
+                .build();
+        Account account = baseAccount(userId, "990000.00");
+        Position position = Position.builder()
+                .id(601L)
+                .userId(userId)
+                .stockCode("600519")
+                .quantity(200)
+                .availableQuantity(100)
+                .costPrice(new BigDecimal("90.00"))
+                .currentPrice(new BigDecimal("100.00"))
+                .marketValue(new BigDecimal("20000.00"))
+                .profit(new BigDecimal("2000.00"))
+                .profitRate(new BigDecimal("11.1111"))
+                .build();
+
+        when(tradeOrderMapper.selectOne(any())).thenReturn(order);
+        when(positionMapper.selectOne(any())).thenReturn(position);
+        when(accountMapper.selectOne(any())).thenReturn(account);
+        when(positionMapper.selectList(any())).thenReturn(List.of(position));
+        when(stockInfoMapper.selectList(any())).thenReturn(List.of(
+                StockInfo.builder().stockCode("600519").stockName("贵州茅台").market("SH").build()
+        ));
+
+        ArgumentCaptor<Position> positionCaptor = ArgumentCaptor.forClass(Position.class);
+        when(positionMapper.updateById(positionCaptor.capture())).thenReturn(1);
+        when(accountMapper.updateById(any(Account.class))).thenReturn(1);
+        when(tradeOrderMapper.updateById(any(TradeOrder.class))).thenReturn(1);
+
+        OrderVO orderVO = tradeService.cancelOrder(userId, 106L);
+
+        assertEquals("cancelled", orderVO.getStatus());
+        assertEquals(200, positionCaptor.getValue().getAvailableQuantity());
+    }
+
+    @Test
+    void getOrdersShouldReturnPagedOrderList() {
+        TradeOrder order = TradeOrder.builder()
+                .id(107L)
+                .userId(7L)
+                .stockCode("600519")
+                .orderType("buy")
+                .price(new BigDecimal("95.00"))
+                .quantity(100)
+                .amount(new BigDecimal("9500.00"))
+                .fee(new BigDecimal("5.00"))
+                .status("pending")
+                .build();
+        Page<TradeOrder> page = new Page<>(1, 20);
+        page.setRecords(List.of(order));
+        page.setTotal(1);
+
+        when(tradeOrderMapper.selectPage(any(), any())).thenReturn(page);
+        when(stockInfoMapper.selectList(any())).thenReturn(List.of(
+                StockInfo.builder().stockCode("600519").stockName("贵州茅台").market("SH").build()
+        ));
+
+        PageVO<OrderVO> result = tradeService.getOrders(7L, null, null, "pending", 1, 20);
+
+        assertEquals(1L, result.getTotal());
+        assertEquals("pending", result.getRecords().get(0).getStatus());
+        assertEquals("贵州茅台", result.getRecords().get(0).getStockName());
     }
 
     @Test

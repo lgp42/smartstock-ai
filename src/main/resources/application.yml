@@ -5,7 +5,7 @@ spring:
   datasource:
     url: ${SMARTSTOCK_DB_URL:jdbc:mysql://127.0.0.1:3306/smartstock_ai?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
     username: ${SMARTSTOCK_DB_USERNAME:root}
-    password: ${SMARTSTOCK_DB_PASSWORD:785460}
+    password: ${SMARTSTOCK_DB_PASSWORD:}
     driver-class-name: ${SMARTSTOCK_DB_DRIVER:com.mysql.cj.jdbc.Driver}
     hikari:
       maximum-pool-size: ${SMARTSTOCK_DB_MAX_POOL_SIZE:20}
@@ -18,7 +18,7 @@ spring:
     redis:
       host: ${SMARTSTOCK_REDIS_HOST:127.0.0.1}
       port: ${SMARTSTOCK_REDIS_PORT:6379}
-      password: ${SMARTSTOCK_REDIS_PASSWORD:Mv27Yq0yv2}
+      password: ${SMARTSTOCK_REDIS_PASSWORD:}
       database: ${SMARTSTOCK_REDIS_DATABASE:0}
       timeout: ${SMARTSTOCK_REDIS_TIMEOUT:5000ms}
       lettuce:

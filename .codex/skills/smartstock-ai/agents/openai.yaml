@@ -1,0 +1,4 @@
+interface:
+  display_name: "SmartStock AI"
+  short_description: "Work on the SmartStock AI codebase"
+  default_prompt: "Use $smartstock-ai to implement a focused SmartStock AI backend or frontend change."

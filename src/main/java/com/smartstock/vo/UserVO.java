@@ -9,6 +9,7 @@ public class UserVO {
 
     private Long userId;
     private String email;
+    private String phone;
     private String nickname;
     private String avatar;
     private LocalDateTime createdAt;

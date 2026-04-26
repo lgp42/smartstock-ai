@@ -86,16 +86,20 @@ public class NewsServiceImpl implements NewsService {
         if (unfiltered) {
             List<NewsFlashVO> cachedNews = getCachedNews(limit);
             if (!cachedNews.isEmpty()) {
-                triggerAsyncSync(Math.max(limit, MIN_SYNC_SIZE), true);
                 return cachedNews;
             }
         }
 
-        List<NewsFlashVO> latestNews = loadStoredNews(Math.max(limit, MAX_CACHE_SIZE), source, stockCode, keyword);
+        List<NewsFlashVO> latestNews;
+        if (unfiltered) {
+            synchronizeNews(Math.max(limit, MIN_SYNC_SIZE));
+            latestNews = loadStoredNews(Math.max(limit, MAX_CACHE_SIZE), null, null, null);
+        } else {
+            latestNews = loadStoredNews(Math.max(limit, MAX_CACHE_SIZE), source, stockCode, keyword);
+        }
         if (unfiltered) {
             cacheNews(latestNews);
         }
-        triggerAsyncSync(Math.max(limit, MIN_SYNC_SIZE), unfiltered);
         return trimResult(latestNews, limit);
     }
 

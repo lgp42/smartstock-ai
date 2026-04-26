@@ -1,6 +1,9 @@
 package com.smartstock.controller;
 
 import com.smartstock.common.Result;
+import com.smartstock.dto.PasswordChangeDTO;
+import com.smartstock.dto.PhoneLoginDTO;
+import com.smartstock.dto.PhoneRegisterDTO;
 import com.smartstock.dto.UserLoginDTO;
 import com.smartstock.dto.UserRegisterDTO;
 import com.smartstock.dto.UserUpdateDTO;
@@ -26,9 +29,19 @@ public class UserController {
         return Result.ok(userService.register(dto));
     }
 
+    @PostMapping("/api/auth/register/phone")
+    public Result<UserVO> registerByPhone(@Valid @RequestBody PhoneRegisterDTO dto) {
+        return Result.ok(userService.registerByPhone(dto));
+    }
+
     @PostMapping("/api/auth/login")
     public Result<LoginVO> login(@Valid @RequestBody UserLoginDTO dto) {
         return Result.ok(userService.login(dto));
+    }
+
+    @PostMapping("/api/auth/login/phone")
+    public Result<LoginVO> loginByPhone(@Valid @RequestBody PhoneLoginDTO dto) {
+        return Result.ok(userService.loginByPhone(dto));
     }
 
     @PostMapping("/api/auth/logout")
@@ -47,5 +60,12 @@ public class UserController {
     public Result<UserVO> updateMe(HttpServletRequest request, @Valid @RequestBody UserUpdateDTO dto) {
         Long userId = UserContext.getUserId(request);
         return Result.ok(userService.updateUser(userId, dto));
+    }
+
+    @PutMapping("/api/users/me/password")
+    public Result<Void> changePassword(HttpServletRequest request, @Valid @RequestBody PasswordChangeDTO dto) {
+        Long userId = UserContext.getUserId(request);
+        userService.changePassword(userId, dto);
+        return Result.ok();
     }
 }

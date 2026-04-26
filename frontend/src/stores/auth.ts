@@ -23,6 +23,22 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = {
       userId: data.userId,
       email: data.email,
+      phone: data.phone,
+      nickname: data.nickname,
+      avatar: data.avatar,
+      createdAt: data.createdAt,
+    }
+    localStorage.setItem('user', JSON.stringify(user.value))
+  }
+
+  const loginByPhone = async (phone: string, password: string) => {
+    const data = await request.post<LoginVO>('/auth/login/phone', { phone, password })
+    token.value = data.token
+    localStorage.setItem('token', data.token)
+    user.value = {
+      userId: data.userId,
+      email: data.email,
+      phone: data.phone,
       nickname: data.nickname,
       avatar: data.avatar,
       createdAt: data.createdAt,
@@ -32,6 +48,14 @@ export const useAuthStore = defineStore('auth', () => {
 
   const register = async (email: string, password: string, nickname: string) => {
     await request.post('/auth/register', { email, password, nickname })
+  }
+
+  const registerByPhone = async (phone: string, password: string, nickname: string) => {
+    await request.post('/auth/register/phone', { phone, password, nickname })
+  }
+
+  const changePassword = async (oldPassword: string, newPassword: string) => {
+    await request.put('/users/me/password', { oldPassword, newPassword })
   }
 
   const logout = async () => {
@@ -63,5 +87,18 @@ export const useAuthStore = defineStore('auth', () => {
   // Initialize from localStorage
   loadUser()
 
-  return { token, user, isLoggedIn, login, register, logout, loadUser, fetchProfile, clearSession }
+  return {
+    token,
+    user,
+    isLoggedIn,
+    login,
+    loginByPhone,
+    register,
+    registerByPhone,
+    changePassword,
+    logout,
+    loadUser,
+    fetchProfile,
+    clearSession,
+  }
 })

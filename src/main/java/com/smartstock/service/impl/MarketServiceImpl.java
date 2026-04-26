@@ -68,7 +68,6 @@ public class MarketServiceImpl implements MarketService {
     private static final int SCREENING_RESULT_LIMIT = 300;
     private static final int FALLBACK_SCREENING_POOL_LIMIT = 180;
     private static final Duration SCREENER_CACHE_TTL = Duration.ofSeconds(90);
-    private static final Map<String, CachedScreenerResult> SCREENER_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, List<String>> FALLBACK_BOARD_QUERIES = Map.of(
             "sh_main", List.of("600", "601", "603", "605", "银行", "证券", "白酒", "煤炭"),
             "sz_main", List.of("000", "001", "002", "003", "家电", "医药", "消费", "地产"),
@@ -85,6 +84,7 @@ public class MarketServiceImpl implements MarketService {
 
     private final StockInfoMapper stockInfoMapper;
     private final EastMoneyClient eastMoneyClient;
+    private final Map<String, CachedScreenerResult> screenerCache = new ConcurrentHashMap<>();
 
     @Override
     @Cacheable(cacheNames = "stockDetail", key = "#stockCode", unless = "#result == null")
@@ -206,7 +206,7 @@ public class MarketServiceImpl implements MarketService {
 
     @Override
     public List<IndicatorVO> getIndicators(String stockCode, String indicatorType, String period, int limit) {
-        String normalizedIndicatorType = normalizeIndicatorType(indicatorType);
+        List<String> normalizedIndicatorTypes = normalizeIndicatorTypes(indicatorType);
         String normalizedPeriod = normalizePeriod(period);
         validateLimit(limit);
 
@@ -215,13 +215,11 @@ public class MarketServiceImpl implements MarketService {
             return new ArrayList<>();
         }
 
-        return switch (normalizedIndicatorType) {
-            case "macd" -> calculateMacd(klines);
-            case "kdj" -> calculateKdj(klines);
-            case "rsi" -> calculateRsi(klines);
-            default -> throw new BusinessException(ErrorCode.BAD_REQUEST,
-                    "不支持的指标类型: " + indicatorType + "，支持: macd, kdj, rsi");
-        };
+        List<IndicatorVO> result = new ArrayList<>();
+        for (String normalizedIndicatorType : normalizedIndicatorTypes) {
+            result.addAll(calculateIndicator(normalizedIndicatorType, klines));
+        }
+        return result;
     }
 
     @Override
@@ -285,7 +283,7 @@ public class MarketServiceImpl implements MarketService {
                 minMarketCap, maxMarketCap, minPe, maxPe,
                 minTurnoverRate, maxTurnoverRate, minChangeRate, maxChangeRate,
                 excludeSt, excludeDelisted, technicalPattern);
-        CachedScreenerResult cached = SCREENER_CACHE.get(cacheKey);
+        CachedScreenerResult cached = screenerCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) {
             return cached.results();
         }
@@ -339,7 +337,7 @@ public class MarketServiceImpl implements MarketService {
             BigDecimal leftChange = left.getChangeRate() == null ? ZERO : left.getChangeRate();
             return rightChange.compareTo(leftChange);
         });
-        SCREENER_CACHE.put(cacheKey, new CachedScreenerResult(result, Instant.now().plus(SCREENER_CACHE_TTL)));
+        screenerCache.put(cacheKey, new CachedScreenerResult(result, Instant.now().plus(SCREENER_CACHE_TTL)));
         return result;
     }
 
@@ -624,6 +622,50 @@ public class MarketServiceImpl implements MarketService {
         return result;
     }
 
+    private List<IndicatorVO> calculateMa(List<KlineVO> klines) {
+        List<IndicatorVO> result = new ArrayList<>();
+        BigDecimal[] closes = extractCloses(klines);
+        for (int i = 0; i < klines.size(); i++) {
+            IndicatorVO vo = new IndicatorVO();
+            vo.setDate(klines.get(i).getDate());
+            vo.setType("ma");
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("ma5", movingAverage(closes, i, 5));
+            data.put("ma10", movingAverage(closes, i, 10));
+            data.put("ma20", movingAverage(closes, i, 20));
+            vo.setData(data);
+            result.add(vo);
+        }
+        return result;
+    }
+
+    private List<IndicatorVO> calculateBoll(List<KlineVO> klines) {
+        List<IndicatorVO> result = new ArrayList<>();
+        BigDecimal[] closes = extractCloses(klines);
+        for (int i = 0; i < klines.size(); i++) {
+            IndicatorVO vo = new IndicatorVO();
+            vo.setDate(klines.get(i).getDate());
+            vo.setType("boll");
+
+            Map<String, Object> data = new HashMap<>();
+            if (i < 19) {
+                data.put("mid", null);
+                data.put("upper", null);
+                data.put("lower", null);
+            } else {
+                BigDecimal mid = movingAverage(closes, i, 20);
+                BigDecimal stdDev = standardDeviation(closes, i, 20, mid);
+                data.put("mid", mid);
+                data.put("upper", round2(mid.add(stdDev.multiply(TWO))));
+                data.put("lower", round2(mid.subtract(stdDev.multiply(TWO))));
+            }
+            vo.setData(data);
+            result.add(vo);
+        }
+        return result;
+    }
+
     /**
      * 计算指定周期的 RSI
      */
@@ -718,13 +760,30 @@ public class MarketServiceImpl implements MarketService {
         return normalizedPeriod;
     }
 
-    private String normalizeIndicatorType(String indicatorType) {
-        String normalizedType = indicatorType == null ? "macd" : indicatorType.trim().toLowerCase();
-        if (!List.of("macd", "kdj", "rsi").contains(normalizedType)) {
+    private List<String> normalizeIndicatorTypes(String indicatorType) {
+        String rawType = indicatorType == null ? "macd" : indicatorType.trim().toLowerCase();
+        List<String> normalizedTypes = java.util.Arrays.stream(rawType.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        if (normalizedTypes.isEmpty() || !List.of("macd", "kdj", "rsi", "ma", "boll").containsAll(normalizedTypes)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST,
-                    "不支持的指标类型: " + indicatorType + "，支持: macd, kdj, rsi");
+                    "不支持的指标类型: " + indicatorType + "，支持: macd, kdj, rsi, ma, boll");
         }
-        return normalizedType;
+        return normalizedTypes;
+    }
+
+    private List<IndicatorVO> calculateIndicator(String indicatorType, List<KlineVO> klines) {
+        return switch (indicatorType) {
+            case "macd" -> calculateMacd(klines);
+            case "kdj" -> calculateKdj(klines);
+            case "rsi" -> calculateRsi(klines);
+            case "ma" -> calculateMa(klines);
+            case "boll" -> calculateBoll(klines);
+            default -> throw new BusinessException(ErrorCode.BAD_REQUEST,
+                    "不支持的指标类型: " + indicatorType + "，支持: macd, kdj, rsi, ma, boll");
+        };
     }
 
     private void validateLimit(int limit) {
@@ -784,6 +843,27 @@ public class MarketServiceImpl implements MarketService {
 
     private BigDecimal round4(BigDecimal value) {
         return value == null ? null : value.setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal movingAverage(BigDecimal[] closes, int endIndex, int period) {
+        if (endIndex + 1 < period) {
+            return null;
+        }
+        BigDecimal sum = ZERO;
+        for (int i = endIndex - period + 1; i <= endIndex; i++) {
+            sum = sum.add(closes[i]);
+        }
+        return round2(sum.divide(BigDecimal.valueOf(period), CALC_SCALE, RoundingMode.HALF_UP));
+    }
+
+    private BigDecimal standardDeviation(BigDecimal[] closes, int endIndex, int period, BigDecimal average) {
+        BigDecimal variance = ZERO;
+        for (int i = endIndex - period + 1; i <= endIndex; i++) {
+            BigDecimal diff = closes[i].subtract(average);
+            variance = variance.add(diff.multiply(diff));
+        }
+        variance = variance.divide(BigDecimal.valueOf(period), CALC_SCALE, RoundingMode.HALF_UP);
+        return BigDecimal.valueOf(Math.sqrt(variance.doubleValue())).setScale(CALC_SCALE, RoundingMode.HALF_UP);
     }
 
     private String uniqueSearchKey(Map<String, String> item) {

@@ -230,7 +230,7 @@ import { useToastStore } from '../stores/toast'
 import type { StockDetailVO, QaAnswerVO, QaHistoryVO } from '../types'
 
 type PeriodValue = '1s' | '1min' | '5min' | '15min' | '30min' | '60min' | 'day' | 'week' | 'month'
-type IndicatorValue = 'macd' | 'kdj' | 'rsi'
+type IndicatorValue = 'macd' | 'kdj' | 'rsi' | 'ma' | 'boll'
 
 const PERIOD_OPTIONS: Array<{ label: string; value: PeriodValue; kline: Period }> = [
   { label: '1秒', value: '1s',    kline: { type: 'second', span: 1 } },
@@ -248,6 +248,8 @@ const INDICATOR_OPTIONS: Array<{ label: string; value: IndicatorValue; klineName
   { label: 'MACD', value: 'macd', klineName: 'MACD' },
   { label: 'KDJ',  value: 'kdj',  klineName: 'KDJ' },
   { label: 'RSI',  value: 'rsi',  klineName: 'RSI' },
+  { label: 'MA',   value: 'ma',   klineName: 'MA' },
+  { label: 'BOLL', value: 'boll', klineName: 'BOLL' },
 ]
 
 const route = useRoute()

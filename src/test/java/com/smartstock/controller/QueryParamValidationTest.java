@@ -113,6 +113,23 @@ class QueryParamValidationTest {
     }
 
     @Test
+    void indicatorsShouldAllowMaBollAndMultipleValues() throws Exception {
+        MarketService marketService = Mockito.mock(MarketService.class);
+        Mockito.when(marketService.getIndicators("000001", "ma,boll", "day", 10)).thenReturn(java.util.List.of());
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketController(marketService))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .setValidator(validator)
+                .build();
+
+        mockMvc.perform(get("/api/market/stocks/000001/indicators")
+                        .param("indicators", "ma,boll")
+                        .param("period", "day")
+                        .param("limit", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+    }
+
+    @Test
     void flashNewsPageShouldRejectNonPositivePage() throws Exception {
         com.smartstock.service.NewsService newsService = Mockito.mock(com.smartstock.service.NewsService.class);
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new NewsController(newsService))

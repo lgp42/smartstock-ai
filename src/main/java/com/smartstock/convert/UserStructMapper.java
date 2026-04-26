@@ -15,6 +15,7 @@ public class UserStructMapper {
         UserVO vo = new UserVO();
         vo.setUserId(user.getId());
         vo.setEmail(user.getEmail());
+        vo.setPhone(user.getPhone());
         vo.setNickname(user.getNickname());
         vo.setAvatar(user.getAvatar());
         vo.setCreatedAt(user.getCreatedAt());
@@ -28,6 +29,7 @@ public class UserStructMapper {
         LoginVO vo = new LoginVO();
         vo.setUserId(user.getId());
         vo.setEmail(user.getEmail());
+        vo.setPhone(user.getPhone());
         vo.setNickname(user.getNickname());
         vo.setAvatar(user.getAvatar());
         vo.setCreatedAt(user.getCreatedAt());
