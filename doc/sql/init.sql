@@ -206,10 +206,8 @@ CREATE TABLE IF NOT EXISTS `orders` (
     `created_at`      DATETIME                DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`      DATETIME                DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    KEY `idx_orders_user_id` (`user_id`),
-    KEY `idx_orders_stock_code` (`stock_code`),
-    KEY `idx_orders_status` (`status`),
-    KEY `idx_orders_created_at` (`created_at`)
+    KEY `idx_orders_user_status_time` (`user_id`, `status`, `created_at`),
+    KEY `idx_orders_stock_code` (`stock_code`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='订单表';
 
