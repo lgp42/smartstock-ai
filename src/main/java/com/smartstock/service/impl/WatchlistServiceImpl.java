@@ -52,23 +52,23 @@ public class WatchlistServiceImpl implements WatchlistService {
             String stockName = stockInfo != null ? stockInfo.getStockName() : null;
             String market = stockInfo != null ? stockInfo.getMarket() : null;
             WatchlistVO vo = watchlistStructMapper.toWatchlistVO(item, stockName, market);
+            result.add(vo);
+        }
 
-            if (stockInfo != null) {
-                // 批量获取实时报价，失败不影响主流程
+        result.parallelStream().forEach(vo -> {
+            if (StringUtils.hasText(vo.getMarket())) {
                 try {
-                    String marketCode = StockInfo.toEastMoneyMarketCode(stockInfo.getMarket());
-                    StockRealtimeDTO realtimeDTO = eastMoneyClient.getRealtimeQuote(stockCode, marketCode);
+                    String marketCode = StockInfo.toEastMoneyMarketCode(vo.getMarket());
+                    StockRealtimeDTO realtimeDTO = eastMoneyClient.getRealtimeQuote(vo.getStockCode(), marketCode);
                     if (realtimeDTO != null) {
                         vo.setCurrentPrice(realtimeDTO.getCurrentPrice());
                         vo.setChangeRate(realtimeDTO.getChangeRate());
                     }
                 } catch (Exception e) {
-                    log.warn("Failed to get realtime quote for watchlist stock: {}", stockCode, e);
+                    log.warn("Failed to get realtime quote for watchlist stock: {}", vo.getStockCode(), e);
                 }
             }
-
-            result.add(vo);
-        }
+        });
         return result;
     }
 

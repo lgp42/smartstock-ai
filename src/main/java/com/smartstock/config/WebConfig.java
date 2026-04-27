@@ -20,6 +20,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/analysis/**",
                         "/api/qa/**",
                         "/api/trade/**",
+                        "/api/risk/**",
                         "/api/watchlist/**"
                 );
     }

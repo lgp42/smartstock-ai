@@ -304,7 +304,7 @@ const loadData = async () => {
     const [snapshots, wl, news] = await Promise.all([
       request.get('/market/snapshots').catch(() => []),
       request.get('/watchlist'),
-      request.get('/news/flash', { params: { limit: 3 } }).catch(() => null)
+      request.get('/news/flash/page', { params: { page: 1, pageSize: 3 } }).catch(() => null)
     ])
     marketSnapshots.value = Array.isArray(snapshots) ? snapshots : []
     watchlist.value = wl as any[]
@@ -312,8 +312,9 @@ const loadData = async () => {
       watchlist.value.some(item => item.stockCode === code)
     )
     lastSyncTime.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
-    if (Array.isArray(news) && news.length > 0) {
-      marketNews.value = news.map(item => ({
+    const newsRecords = Array.isArray((news as any)?.records) ? (news as any).records : []
+    if (newsRecords.length > 0) {
+      marketNews.value = newsRecords.map(item => ({
         publishTime: item.publishTime || '--:--',
         source: item.source || '快讯',
         title: item.title || item.summary || '暂无标题',
@@ -323,6 +324,12 @@ const loadData = async () => {
   } catch (err) {
     console.error(err)
   }
+}
+
+const loadMarketSnapshots = async () => {
+  const snapshots = await request.get('/market/snapshots').catch(() => [])
+  marketSnapshots.value = Array.isArray(snapshots) ? snapshots : []
+  lastSyncTime.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
 }
 
 const toggleSort = () => {
@@ -415,7 +422,7 @@ const newsTimeClass = (index: number) => {
 onMounted(() => {
   loadData()
   pollTimer = window.setInterval(() => {
-    loadData().catch(console.error)
+    loadMarketSnapshots().catch(console.error)
   }, 1000)
 })
 

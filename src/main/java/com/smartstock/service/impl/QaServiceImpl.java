@@ -17,6 +17,7 @@ import com.smartstock.vo.QaSessionVO;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
+import io.netty.resolver.DefaultAddressResolverGroup;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -189,6 +190,7 @@ public class QaServiceImpl implements QaService {
     private WebClient buildWebClient() {
         Duration timeout = analysisServiceProperties.getTimeout();
         HttpClient httpClient = HttpClient.create()
+                .resolver(DefaultAddressResolverGroup.INSTANCE)
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                 .responseTimeout(timeout)
                 .doOnConnected((connection) -> connection

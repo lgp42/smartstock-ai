@@ -51,7 +51,9 @@ public class MarketServiceImpl implements MarketService {
     private static final BigDecimal TWO_THIRDS = TWO.divide(THREE, CALC_SCALE, RoundingMode.HALF_UP);
     private static final List<MarketTarget> MARKET_SNAPSHOTS = List.of(
             new MarketTarget("000001", "1", "上证指数"),
-            new MarketTarget("399001", "0", "深证成指")
+            new MarketTarget("399001", "0", "深证成指"),
+            new MarketTarget("399006", "0", "创业板指"),
+            new MarketTarget("000688", "1", "科创50")
     );
     private static final List<SearchPreset> SEARCH_PRESETS = List.of(
             new SearchPreset("000001", "SH", "上证指数", "指数", List.of("上证", "上证指数", "上证综指", "沪指")),

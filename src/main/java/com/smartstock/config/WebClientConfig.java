@@ -5,6 +5,7 @@ import com.smartstock.client.WebClientRemoteHttpClient;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
+import io.netty.resolver.DefaultAddressResolverGroup;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -27,6 +28,7 @@ public class WebClientConfig {
     @Bean
     public WebClient.Builder webClientBuilder() {
         HttpClient httpClient = HttpClient.create()
+                .resolver(DefaultAddressResolverGroup.INSTANCE)
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                 .responseTimeout(Duration.ofSeconds(10))
                 .doOnConnected((connection) -> connection
